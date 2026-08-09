@@ -1,0 +1,103 @@
+cmake_minimum_required(VERSION 3.21)
+
+if(NOT DEFINED ENV{COMMONLIB_SSE_FOLDER})
+    message(FATAL_ERROR "Missing COMMONLIB_SSE_FOLDER environment variable")
+endif()
+
+include(cmake/lib/copyOutputs.cmake)
+include(cmake/lib/automaticGameFolderOutput.cmake)
+include(cmake/lib/autoCollectSources.cmake)
+
+add_src_folder(src)
+add_include_folder(include)
+
+set(AUTHOR_NAME "Particle Light Editor Team")
+set(PRODUCT_NAME "ParticleLightEditor")
+set(BEAUTIFUL_NAME "Particle Light Editor")
+
+project(${PRODUCT_NAME} VERSION 1.0.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.rc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/version.rc
+    @ONLY
+)
+
+set(RESOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+set(RESOURCE_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.res)
+
+add_custom_command(
+    OUTPUT ${RESOURCE_OUTPUT}
+    COMMAND rc /fo ${RESOURCE_OUTPUT} ${RESOURCE_FILE}
+    DEPENDS ${RESOURCE_FILE}
+)
+
+add_custom_target(Resource ALL DEPENDS ${RESOURCE_OUTPUT})
+
+set(ENABLE_SKYRIM_SE ON CACHE BOOL "" FORCE)
+set(ENABLE_SKYRIM_AE ON CACHE BOOL "" FORCE)
+set(ENABLE_SKYRIM_VR ON CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
+add_subdirectory("$ENV{COMMONLIB_SSE_FOLDER}" ${CMAKE_CURRENT_BINARY_DIR}/_deps/clib-build)
+get_target_property(COMMONLIB_SRC_DIR CommonLibSSE SOURCE_DIR)
+
+find_path(CLIB_UTIL_INCLUDE_DIRS "ClibUtil/utils.hpp")
+find_path(CLIB_UTILS_QTR_INCLUDE_DIRS "CLibUtilsQTR/DrawDebug.hpp")
+
+list(APPEND sources ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+
+source_group(
+    TREE ${CMAKE_CURRENT_SOURCE_DIR}
+    FILES ${headers} ${sources}
+)
+
+include(${COMMONLIB_SRC_DIR}/cmake/CommonLibSSE.cmake)
+
+add_commonlibsse_plugin(
+    ${PROJECT_NAME}
+    AUTHOR ${AUTHOR_NAME}
+    SOURCES ${headers} ${sources}
+)
+
+add_dependencies(${PROJECT_NAME} Resource)
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
+target_precompile_headers(${PROJECT_NAME} PRIVATE include/plugin.hpp)
+target_compile_definitions(
+    ${PROJECT_NAME}
+    PRIVATE
+        BEAUTIFUL_NAME="${BEAUTIFUL_NAME}"
+        NOMINMAX
+        PRODUCT_NAME="${PRODUCT_NAME}"
+        WIN32_LEAN_AND_MEAN
+)
+
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Release>:/Zi>")
+    target_link_options(${PROJECT_NAME} PRIVATE "$<$<CONFIG:Release>:/DEBUG:FULL>")
+endif()
+
+set(header_dirs "")
+foreach(header ${headers})
+    get_filename_component(dir ${header} DIRECTORY)
+    list(APPEND header_dirs ${dir})
+endforeach()
+list(REMOVE_DUPLICATES header_dirs)
+
+target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE
+        ${header_dirs}
+        ${CLIB_UTIL_INCLUDE_DIRS}
+        ${CLIB_UTILS_QTR_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+automaticGameFolderOutput(FALSE FALSE TRUE)
