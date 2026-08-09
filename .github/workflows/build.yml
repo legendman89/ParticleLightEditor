@@ -12,7 +12,8 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Compatible with Ninja.
+    runs-on: windows-2022
 
     env:
       COMMONLIB_SSE_FOLDER: ${{ github.workspace }}\external\CommonLibVR
