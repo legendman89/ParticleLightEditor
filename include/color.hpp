@@ -24,7 +24,7 @@ namespace ParticleLightEditor::Menu::Color {
     inline constexpr GUI::ImVec4 kEditActionActive{ 0.28F, 0.21F, 0.11F, 1.00F };
     inline constexpr GUI::ImVec4 kEditActionText{ 1.00F, 0.94F, 0.78F, 1.00F };
     inline constexpr GUI::ImVec4 kEditActionBorder{ 0.68F, 0.53F, 0.29F, 0.90F };
-    inline constexpr GUI::ImVec4 kActionBarRule{ 0.54F, 0.50F, 0.42F, 0.78F };
+    inline constexpr GUI::ImVec4 kIconHover{ 1.00F, 0.52F, 0.08F, 1.00F };
     inline constexpr GUI::ImVec4 kTransparent{ 0.0F, 0.0F, 0.0F, 0.0F };
 
 }

@@ -1,37 +1,10 @@
-#include "menu.hpp"
-
-#include "category.hpp"
 #include "color.hpp"
-#include "scanner.hpp"
-#include "controls.hpp"
+#include "editor_window.hpp"
 #include "logger.hpp"
 #include "settings.hpp"
-#include "utility.hpp"
 
 namespace ParticleLightEditor::Menu
 {
-    bool SelectionMatchesFilter(const Scanner& a_scanner, const State& a_state, size_t a_index)
-    {
-        return (!a_state.editedLightsOnly || a_scanner.IsLightEdited(a_index)) &&
-            a_scanner.LightMatchesFilter(a_index, a_state.lightFilter.data());
-    }
-
-    bool SetEditorWindowOpen(bool a_open)
-    {
-        auto* window = GetState().editorWindow;
-        if (!window) {
-            return false;
-        }
-        window->IsOpen.store(a_open);
-        return window->IsOpen.load();
-    }
-
-    bool IsEditorWindowOpen()
-    {
-        auto* window = GetState().editorWindow;
-        return window && window->IsOpen.load();
-    }
-
     void RenderSelection()
     {
         auto& scanner = Scanner::GetSingleton();
@@ -48,8 +21,8 @@ namespace ParticleLightEditor::Menu
         Controls::Tooltip("Search the object text or Form ID shown in the list.");
         GUI::SameLine(0.0F, 12.0F);
         GUI::Checkbox("Edited only##ParticleLightFilter", &state.editedLightsOnly);
-        GUI::SameLine(0.0F, 12.0F);
-        GUI::Text("%llu of %llu", resultCount, scanner.GetLightCount());
+        GUI::SameLine(0.0F, 18.0F);
+        GUI::Text("Found %llu of %llu", resultCount, scanner.GetLightCount());
 
         GUI::Spacing();
 
@@ -75,6 +48,7 @@ namespace ParticleLightEditor::Menu
                 if (GUI::Selectable(itemLabel.c_str(), selected)) {
                     scanner.SelectLight(index);
                     state.consoleStatus.clear();
+                    ClearEditorStatus();
                 }
                 if (selected) {
                     GUI::SetItemDefaultFocus();
@@ -93,47 +67,52 @@ namespace ParticleLightEditor::Menu
         }
     }
 
-    void RenderIdentity(const EditorState& a_editor)
-    {
-        const auto hasSource = a_editor.associatedLightRefID != 0;
-        const auto& sourceName = hasSource ? a_editor.associatedLightName : a_editor.baseEditorID;
-        const auto sourceLabel = Utility::BeautifyLabel(sourceName.empty() ? "Unnamed" : sourceName);
-        GUI::Text("Source light: %s [%08X]", sourceLabel.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
-        GUI::Text("Category: %s", Category::Name(a_editor.category));
-    }
-
     void RenderEditorControls(const EditorState& a_editor)
     {
         auto& scanner = Scanner::GetSingleton();
+        RenderClipboardActions(a_editor);
+
+        GUI::Spacing();
+
         if (GUI::CollapsingHeader("Edit Scope", GUI::ImGuiTreeNodeFlags_DefaultOpen)) {
-
             GUI::Spacing();
-
             constexpr const char* scopes[]{ "This light", "Same category in current cell", "Same category everywhere" };
-            
             auto scope = static_cast<int>(scanner.GetEditScope());
-            GUI::SetNextItemWidth(350.0F);
-            if (GUI::Combo("Apply changes to", &scope, scopes, static_cast<int>(std::size(scopes)))) {
-                scanner.SetEditScope(static_cast<EditScope>(scope));
-            }
-            Controls::Tooltip("Category scopes affect color, opacity, intensity, and proportional radius. Local position always affects only this light.");
-
-            GUI::SameLine(0.0f, 12.f);
-
             auto category = static_cast<int>(scanner.GetTargetCategory());
-            GUI::SetNextItemWidth(220.0F);
-            if (GUI::Combo("Target category", &category, Category::kNames, static_cast<int>(std::size(Category::kNames)))) {
-                scanner.SetTargetCategory(static_cast<ParticleCategory>(category));
+            constexpr auto tableFlags = GUI::ImGuiTableFlags_SizingStretchSame | GUI::ImGuiTableFlags_NoSavedSettings;
+            if (GUI::BeginTable("EditScopeTable", 2, tableFlags)) {
+                GUI::TableSetupColumn("Scope", GUI::ImGuiTableColumnFlags_WidthStretch);
+                GUI::TableSetupColumn("Category", GUI::ImGuiTableColumnFlags_WidthStretch);
+                GUI::TableNextRow();
+                GUI::TableNextColumn();
+                GUI::TextUnformatted("Apply changes to");
+                GUI::TableNextColumn();
+                GUI::TextUnformatted("Target category");
+                GUI::TableNextRow();
+                GUI::TableNextColumn();
+                GUI::SetNextItemWidth(-1.0F);
+                if (GUI::Combo("##EditScope", &scope, scopes, static_cast<int>(std::size(scopes)))) {
+                    scanner.SetEditScope(static_cast<EditScope>(scope));
+                    ClearEditorStatus();
+                }
+                Controls::Tooltip("Category scopes affect color, opacity, intensity, and proportional radius. Local position and enabled state always affect only this light.");
+                GUI::TableNextColumn();
+                GUI::SetNextItemWidth(-1.0F);
+                if (GUI::Combo("##TargetCategory", &category, Category::kNames, static_cast<int>(std::size(Category::kNames)))) {
+                    scanner.SetTargetCategory(static_cast<ParticleCategory>(category));
+                    ClearEditorStatus();
+                }
+                Controls::Tooltip("Choose which category the current scope edits. This does not change the selected mesh's category.");
+                GUI::EndTable();
             }
-            Controls::Tooltip("Choose which category the current scope edits. This does not change the selected mesh's category.");
 
-            GUI::Spacing();
             GUI::Spacing();
 
             const auto targetCategory = scanner.GetTargetCategory();
             if (targetCategory != ParticleCategory::kUnclassified && targetCategory != a_editor.category) {
                 if (Controls::CTAButton("Assign Selected Mesh to Target", true)) {
                     scanner.SetSelectedCategory(targetCategory);
+                    GetEditorWindowState().status = "Assigned the selected mesh to the target category.";
                 }
                 Controls::Tooltip("Explicitly reclassify every instance using the selected mesh. Use this only when automatic classification is wrong.");
             }
@@ -151,35 +130,49 @@ namespace ParticleLightEditor::Menu
 
         auto enabled = a_editor.enabled;
         if (GUI::CollapsingHeader("Appearance", GUI::ImGuiTreeNodeFlags_DefaultOpen)) {
-
             GUI::Spacing();
+            if (BeginPropertyTable("AppearanceProperties")) {
+                BeginPropertyRow("Particle light enabled");
+                if (GUI::Checkbox("Enabled##ParticleLightEnabled", &enabled)) {
+                    scanner.SetSelectedEnabled(enabled);
+                    GetEditorWindowState().status = enabled ? "Particle light enabled." : "Particle light disabled; appearance and geometry controls are locked.";
+                }
+                Controls::Tooltip("Show or hide only the selected particle-light geometry. It remains available in the editor while disabled.");
+                RenderPropertyReset(EditProperty::kEnabled, "ResetEnabled");
 
-            if (GUI::Checkbox("Particle light enabled (this light)", &enabled)) {
-                scanner.SetSelectedEnabled(enabled);
-            }
-            Controls::Tooltip("Show or hide only the selected particle-light geometry. It remains available in the editor while disabled.");
+                if (!enabled) {
+                    GUI::BeginDisabled();
+                }
 
-            GUI::Spacing();
+                BeginPropertyRow("Color and opacity");
+                std::array color{ a_editor.color.red, a_editor.color.green, a_editor.color.blue, a_editor.color.alpha };
+                auto opacity = a_editor.color.alpha;
+                constexpr auto colorFlags = GUI::ImGuiColorEditFlags_DisplayRGB | GUI::ImGuiColorEditFlags_NoAlpha;
+                GUI::SetNextItemWidth(330.0F);
+                const auto colorChanged = GUI::ColorEdit4("##ParticleColor", color.data(), colorFlags);
+                GUI::SameLine(0.0F, 14.0F);
+                GUI::SetNextItemWidth(-1.0F);
+                const auto opacityChanged = GUI::SliderFloat("##ParticleOpacity", &opacity, 0.0F, 1.0F, "Opacity %.2f");
+                if (colorChanged || opacityChanged) {
+                    scanner.SetSelectedColor({ color[0], color[1], color[2], opacity });
+                    GetEditorWindowState().status = "Color and opacity updated.";
+                }
 
-            if (!enabled) {
-                GUI::BeginDisabled();
-            }
+                RenderPropertyReset(EditProperty::kColor, "ResetColor", 12.0f);
 
-            std::array color{ a_editor.color.red, a_editor.color.green, a_editor.color.blue, a_editor.color.alpha };
-            constexpr auto colorFlags = GUI::ImGuiColorEditFlags_DisplayRGB | GUI::ImGuiColorEditFlags_AlphaBar;
-            if (GUI::ColorEdit4("Color and opacity", color.data(), colorFlags)) {
-                scanner.SetSelectedColor({ color[0], color[1], color[2], color[3] });
-            }
-            
-            GUI::Spacing();
+                BeginPropertyRow("Intensity");
+                auto intensity = a_editor.intensity;
+                GUI::SetNextItemWidth(-1.0F);
+                if (GUI::SliderFloat("##ParticleIntensity", &intensity, 0.0F, 10.0F, "%.3f")) {
+                    scanner.SetSelectedIntensity(intensity);
+                    GetEditorWindowState().status = "Intensity updated.";
+                }
+                RenderPropertyReset(EditProperty::kIntensity, "ResetIntensity", 12.0f);
 
-            auto intensity = a_editor.intensity;
-            if (GUI::SliderFloat("Intensity", &intensity, 0.0F, 10.0F, "%.3f")) {
-                scanner.SetSelectedIntensity(intensity);
-            }
-
-            if (!enabled) {
-                GUI::EndDisabled();
+                if (!enabled) {
+                    GUI::EndDisabled();
+                }
+                GUI::EndTable();
             }
         }
 
@@ -190,22 +183,29 @@ namespace ParticleLightEditor::Menu
             GUI::BeginDisabled();
         }
         if (GUI::CollapsingHeader("Geometry", GUI::ImGuiTreeNodeFlags_DefaultOpen)) {
-            
             GUI::Spacing();
+            if (BeginPropertyTable("GeometryProperties")) {
+                BeginPropertyRow("Particle radius");
+                auto radius = a_editor.radius;
+                GUI::SetNextItemWidth(-1.0F);
+                if (GUI::SliderFloat("##ParticleRadius", &radius, 1.0F, 4096.0F, "%.1f")) {
+                    scanner.SetSelectedRadius(radius);
+                    GetEditorWindowState().status = "Particle radius updated.";
+                }
+                Controls::Tooltip("Category scopes preserve each light's relative size by applying the selected light's radius ratio.");
+                RenderPropertyReset(EditProperty::kRadius, "ResetRadius", 12.0f);
 
-            auto radius = a_editor.radius;
-            if (GUI::SliderFloat("Particle radius", &radius, 1.0F, 4096.0F, "%.1f")) {
-                scanner.SetSelectedRadius(radius);
+                BeginPropertyRow("Local position");
+                std::array position{ a_editor.localPosition.x, a_editor.localPosition.y, a_editor.localPosition.z };
+                GUI::SetNextItemWidth(-1.0F);
+                if (GUI::DragFloat3("##ParticlePosition", position.data(), 1.0F, -4096.0F, 4096.0F, "%.2f")) {
+                    scanner.SetSelectedLocalPosition({ position[0], position[1], position[2] });
+                    GetEditorWindowState().status = "Local position updated for this light.";
+                }
+                Controls::Tooltip("Local position always changes only the selected light because different meshes use different pivots.");
+                RenderPropertyReset(EditProperty::kPosition, "ResetPosition", 12.0f);
+                GUI::EndTable();
             }
-            Controls::Tooltip("Category scopes preserve each light's relative size by applying the selected light's radius ratio.");
-            
-            GUI::Spacing();
-
-            std::array position{ a_editor.localPosition.x, a_editor.localPosition.y, a_editor.localPosition.z };
-            if (GUI::DragFloat3("Local position", position.data(), 1.0F, -4096.0F, 4096.0F, "%.2f")) {
-                scanner.SetSelectedLocalPosition({ position[0], position[1], position[2] });
-            }
-            Controls::Tooltip("Local position always changes only the selected light because different meshes use different pivots.");
         }
         if (!enabled) {
             GUI::EndDisabled();
@@ -219,11 +219,12 @@ namespace ParticleLightEditor::Menu
         }
 
         Controls::CenterNextWindow();
-        GUI::SetNextWindowSize(GUI::ImVec2{ 900.0F, 640.0F }, GUI::ImGuiCond_Appearing);
+        GUI::SetNextWindowSize(GUI::ImVec2{ 920.0F, 840.0F }, GUI::ImGuiCond_Appearing);
         GUI::PushStyleColor(GUI::ImGuiCol_WindowBg, Color::kEditorBackground);
         auto editorOpen = true;
         const auto opened = GUI::Begin("Particle Light Editor###ParticleLightEditorWindow", &editorOpen, 0);
         GUI::PopStyleColor();
+        Controls::WindowTitleIcon("Particle Light Editor", Icons::kLightbulb);
         if (!editorOpen) {
             SetEditorWindowOpen(false);
             logger::debug("Particle Light Editor window closed");
@@ -241,35 +242,39 @@ namespace ParticleLightEditor::Menu
         }
 
         EditorState editor;
-        if (scanner.GetSelectedEditorState(editor)) {
+        const auto editorAvailable = scanner.GetSelectedEditorState(editor);
+        if (editorAvailable) {
             RenderIdentity(editor);
             GUI::Spacing();
             RenderEditorControls(editor);
+            HandleEditorShortcuts(editor);
         }
         else {
             GUI::Text("The selected particle geometry is no longer editable.");
         }
 
-        GUI::Spacing();
-        GUI::Separator();
-        GUI::Spacing();
+        Controls::SpacedSeparator();
 
         constexpr auto spacing = 8.0F;
-        const auto saveWidth = Controls::IconCTAButtonWidth("Save Changes");
         const auto resetLabel = scanner.GetEditScope() == EditScope::kSelectedLight ? "Reset Light" : "Reset Scope";
-        const auto resetWidth = Controls::IconCTAButtonWidth(resetLabel);
-        Controls::AlignActions(saveWidth + resetWidth + spacing);
+        const auto resetWidth = Controls::IconCTAButtonWidth(resetLabel, Icons::kReset);
+        const auto saveWidth = Controls::IconCTAButtonWidth("Save Changes", Icons::kSave);
+        auto& state = GetEditorWindowState();
+        const auto defaultStatus = editorAvailable && !editor.enabled ? "Appearance and geometry edits are unavailable while the light is disabled." : "Per-property reset uses the active edit scope.";
+        GUI::TextColored(Color::kEditActionText, "%s", state.status.empty() ? defaultStatus : state.status.c_str());
+        GUI::SameLine(0.0F, spacing);
+        Controls::AlignActions(resetWidth + saveWidth + spacing);
+        if (Controls::IconCTAButton(resetLabel, scanner.IsSelectedScopeEdited(), Icons::kReset)) {
+            const auto target = scanner.GetEditScope() == EditScope::kSelectedLight ? "Light" : "Scope";
+            state.status = scanner.ResetSelectedScope() ? std::format("{} restored.", target) : std::format("Could not restore {}.", target);
+        }
+        const auto resetTooltip = scanner.GetEditScope() == EditScope::kSelectedLight ? "Restore the selected particle light to its original runtime values." : "Remove the active category rule and reveal any more-specific saved edits.";
+        Controls::Tooltip(resetTooltip);
+        GUI::SameLine(0.0F, spacing);
         if (Controls::IconCTAButton("Save Changes", Settings::AreEditsDirty(), Icons::kSave)) {
-            Settings::Save();
+            state.status = Settings::Save() ? "Changes saved to disk." : "Could not save changes to disk.";
         }
         Controls::Tooltip("Save every edited particle light and the current menu options.");
-        GUI::SameLine(0.0F, spacing);
-        if (Controls::IconCTAButton(resetLabel, scanner.IsSelectedScopeEdited(), Icons::kReset)) {
-            scanner.ResetSelectedScope();
-        }
-        Controls::Tooltip(scanner.GetEditScope() == EditScope::kSelectedLight ?
-            "Restore the selected particle light to its original runtime values." :
-            "Remove the active category rule and reveal any more-specific saved edits.");
         GUI::End();
     }
 }

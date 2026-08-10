@@ -19,8 +19,8 @@ namespace ParticleLightEditor::Menu
     void RenderToolsActions()
     {
         constexpr auto spacing = 8.0F;
-        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings");
-        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults");
+        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings", Icons::kSave);
+        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults", Icons::kReset);
         Controls::AlignActions(saveWidth + defaultsWidth + spacing);
 
         GUI::Spacing();
@@ -107,9 +107,9 @@ namespace ParticleLightEditor::Menu
 
             constexpr auto tableFlags = GUI::ImGuiTableFlags_SizingFixedFit | GUI::ImGuiTableFlags_NoSavedSettings;
             if (GUI::BeginTable("DiagnosticsStats", 4, tableFlags)) {
-                GUI::TableSetupColumn("Metric A", GUI::ImGuiTableColumnFlags_WidthFixed, 200.0F);
+                GUI::TableSetupColumn("Metric A", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
                 GUI::TableSetupColumn("Value A", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
-                GUI::TableSetupColumn("Metric B", GUI::ImGuiTableColumnFlags_WidthFixed, 200.0F);
+                GUI::TableSetupColumn("Metric B", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
                 GUI::TableSetupColumn("Value B", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
 
                 GUI::TableNextRow();

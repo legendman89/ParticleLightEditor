@@ -1,6 +1,7 @@
 #include "menu.hpp"
 
 #include "console.hpp"
+#include "editor_window.hpp"
 #include "logger.hpp"
 
 namespace ParticleLightEditor::Menu

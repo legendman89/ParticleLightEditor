@@ -1,6 +1,7 @@
 #include "menu.hpp"
 
 #include "controls.hpp"
+#include "editor_window.hpp"
 #include "scanner.hpp"
 #include "settings.hpp"
 
@@ -9,8 +10,8 @@ namespace ParticleLightEditor::Menu
     void RenderScannerActions()
     {
         constexpr auto spacing = 8.0F;
-        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings");
-        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults");
+        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings", Icons::kSave);
+        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults", Icons::kReset);
         Controls::AlignActions(saveWidth + defaultsWidth + spacing);
 
         GUI::Spacing();

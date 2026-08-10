@@ -37,15 +37,4 @@ namespace ParticleLightEditor::Menu
 
     void RenderToolsSections();
 
-    void __stdcall RenderEditorWindow();
-
-    bool SetEditorWindowOpen(bool a_open);
-
-    bool IsEditorWindowOpen();
-
-    void RenderSelection();
-
-    void RenderIdentity(const EditorState& a_editor);
-    
-    void RenderEditorControls(const EditorState& a_editor);
 }

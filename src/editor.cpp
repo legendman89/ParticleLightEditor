@@ -377,6 +377,7 @@ namespace ParticleLightEditor
         a_state.localPosition = baseEdit->positionChanged ? baseEdit->localPosition : geometry->local.translate;
         a_state.intensity = edit.intensityChanged ? edit.intensity : appearanceMaterial->baseColorScale;
         a_state.radius = edit.radiusChanged ? edit.radius : edit.defaults.radius;
+        a_state.defaultRadius = edit.defaults.radius;
         a_state.enabled = baseEdit->enabledChanged ? baseEdit->enabled : baseEdit->defaults.enabled;
         a_state.category = entry->category;
         return std::isfinite(a_state.radius) && a_state.radius > 0.0F;
@@ -527,11 +528,63 @@ namespace ParticleLightEditor
         return true;
     }
 
+    bool Scanner::ResetSelectedProperty(EditProperty a_property)
+    {
+        auto* entry = GetSelectedEntry();
+        auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!entry || !edit) {
+            return false;
+        }
+
+        const auto selectedOnly = editScope == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled;
+        if (selectedOnly) {
+            if (!IsPropertyChanged(*edit, a_property) || !Editor::Restore(*entry, *edit)) {
+                return false;
+            }
+            ClearProperty(*edit, a_property);
+            auto effectiveEdit = GetEffectiveEdit(*entry);
+            const auto applied = Editor::Apply(*entry, effectiveEdit);
+            ReferenceManager::GetSingleton().Capture(*entry, *edit);
+            return applied;
+        }
+
+        const auto key = GetSelectedCategoryRuleKey();
+        const auto found = categoryRules.find(key);
+        if (found == categoryRules.end() || !IsPropertyChanged(found->second, a_property)) {
+            return false;
+        }
+        for (auto& current : entries) {
+            if (MatchesSelectedScope(current)) {
+                RestoreEntryRuntime(current);
+            }
+        }
+        ClearProperty(found->second, a_property);
+        if (!HasChanges(found->second)) {
+            categoryRules.erase(found);
+        }
+        ApplyParticleLightEdits();
+        return true;
+    }
+
     bool Scanner::IsSelectedLightEdited() const
     {
         const auto* entry = GetSelectedEntry();
         const auto* edit = entry ? FindEdit(*entry) : nullptr;
         return edit && HasChanges(*edit);
+    }
+
+    bool Scanner::IsSelectedPropertyEdited(EditProperty a_property) const
+    {
+        const auto* entry = GetSelectedEntry();
+        const auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!edit) {
+            return false;
+        }
+        if (editScope == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled) {
+            return IsPropertyChanged(*edit, a_property);
+        }
+        const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
+        return found != categoryRules.end() && IsPropertyChanged(found->second, a_property);
     }
 
     bool Scanner::SetEditScope(EditScope a_scope)

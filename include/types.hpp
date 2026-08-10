@@ -5,8 +5,11 @@
 #include <cstring>
 #include <type_traits>
 
-#define EDIT_CHANGED_DEFINE(NAME, CHANGED, COMPARISON) bool CHANGED{ false };
-#define EDIT_CHANGED_CHECK(NAME, CHANGED, COMPARISON) a_edit.CHANGED ||
+#define EDIT_PROPERTY_ENUM(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) PROPERTY,
+#define EDIT_CHANGED_DEFINE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) bool CHANGED{ false };
+#define EDIT_CHANGED_CHECK(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) a_edit.CHANGED ||
+#define EDIT_CHANGED_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: return a_edit.CHANGED;
+#define EDIT_CLEAR_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: a_edit.CHANGED = false; return;
 
 namespace ParticleLightEditor
 {
@@ -27,6 +30,11 @@ namespace ParticleLightEditor
         kCategoryCell,
         kCategoryGlobal,
         kTotal
+    };
+
+    enum class EditProperty : uint8_t
+    {
+        FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_ENUM)
     };
 
     struct CategoryRuleKey
@@ -130,6 +138,7 @@ namespace ParticleLightEditor
         RE::NiPoint3 localPosition;
         float intensity{ 1.0F };
         float radius{ 0.0F };
+        float defaultRadius{ 0.0F };
         bool enabled{ true };
         ParticleCategory category{ ParticleCategory::kUnclassified };
     };
@@ -179,6 +188,42 @@ namespace ParticleLightEditor
     };
 
     inline bool HasChanges(const Edit& a_edit) { return FOREACH_EDIT_PROPERTY(EDIT_CHANGED_CHECK) false; }
+
+    inline bool IsPropertyChanged(const Edit& a_edit, EditProperty a_property)
+    {
+        switch (a_property) {
+            FOREACH_EDIT_PROPERTY(EDIT_CHANGED_CASE)
+        default:
+            return false;
+        }
+    }
+
+    inline bool IsPropertyChanged(const CategoryRule& a_edit, EditProperty a_property)
+    {
+        switch (a_property) {
+            FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CASE)
+        default:
+            return false;
+        }
+    }
+
+    inline void ClearProperty(Edit& a_edit, EditProperty a_property)
+    {
+        switch (a_property) {
+            FOREACH_EDIT_PROPERTY(EDIT_CLEAR_CASE)
+        default:
+            return;
+        }
+    }
+
+    inline void ClearProperty(CategoryRule& a_edit, EditProperty a_property)
+    {
+        switch (a_property) {
+            FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CLEAR_CASE)
+        default:
+            return;
+        }
+    }
 
     using EditMap = std::unordered_map<EditKey, Edit, EditKeyHash>;
 
@@ -275,3 +320,6 @@ namespace ParticleLightEditor
 
 #undef EDIT_CHANGED_DEFINE
 #undef EDIT_CHANGED_CHECK
+#undef EDIT_CHANGED_CASE
+#undef EDIT_CLEAR_CASE
+#undef EDIT_PROPERTY_ENUM

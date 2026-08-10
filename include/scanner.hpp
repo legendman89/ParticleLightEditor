@@ -46,7 +46,11 @@ namespace ParticleLightEditor
 
         bool ResetSelectedLight();
 
+        bool ResetSelectedProperty(EditProperty a_property);
+
         bool IsSelectedLightEdited() const;
+
+        bool IsSelectedPropertyEdited(EditProperty a_property) const;
 
         EditScope GetEditScope() const { return editScope; }
 
