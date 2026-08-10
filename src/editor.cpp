@@ -188,7 +188,8 @@ namespace ParticleLightEditor
 
         const auto& entry = entries[editorIndices[a_index]];
         const auto& objectEditorID = entry.baseEditorID.empty() || entry.baseEditorID == "Unavailable" ? entry.baseName : entry.baseEditorID;
-        return std::format("{} [{:08X}]", objectEditorID.empty() || objectEditorID == "Unnamed" ? "Unnamed Light Fixture" : objectEditorID, entry.ownerFormID);
+        const auto label = Utility::BeautifyLabel(objectEditorID.empty() || objectEditorID == "Unnamed" ? "Unnamed Light Fixture" : objectEditorID);
+        return std::format("{} [{:08X}]", label, entry.ownerFormID);
     }
 
     bool Scanner::LightMatchesFilter(size_t a_index, std::string_view a_filter) const

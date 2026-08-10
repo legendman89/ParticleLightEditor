@@ -123,7 +123,7 @@ namespace ParticleLightEditor::Menu
                 RenderDiagnosticMetric("Named candidates", stats.scan.nameValidatedCount);
                 GUI::TableNextRow();
                 RenderDiagnosticMetric("Structural candidates", stats.scan.structuralCandidateCount);
-                RenderDiagnosticMetric("Spatial matches", stats.scan.spatialMatchCount);
+                RenderDiagnosticMetric("Source matches", stats.scan.sourceMatchCount);
                 GUI::TableNextRow();
                 RenderDiagnosticMetric("Unmatched structural", stats.scan.unmatchedStructuralCount);
                 RenderDiagnosticMetric("Rejected glow", stats.scan.rejectedGlowCount);
@@ -134,7 +134,7 @@ namespace ParticleLightEditor::Menu
             }
 
             GUI::Checkbox("Show node-name validated lights", &settings.showNameValidated);
-            GUI::Checkbox("Show spatially validated lights", &settings.showRuntimeValidated);
+            GUI::Checkbox("Show lights matched to nearby sources", &settings.showRuntimeValidated);
 
             GUI::Spacing();
             GUI::Spacing();

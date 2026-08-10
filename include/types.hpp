@@ -75,7 +75,7 @@ namespace ParticleLightEditor
         size_t rejectedShaderCount{ 0 };
         size_t rejectedTopologyCount{ 0 };
         size_t structuralCandidateCount{ 0 };
-        size_t spatialMatchCount{ 0 };
+        size_t sourceMatchCount{ 0 };
         size_t unmatchedStructuralCount{ 0 };
 
         void Reset() noexcept

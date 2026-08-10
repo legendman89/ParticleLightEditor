@@ -2,6 +2,31 @@
 
 namespace ParticleLightEditor::Utility
 {
+    inline std::string BeautifyLabel(std::string_view a_value)
+    {
+        std::string result;
+        result.reserve(a_value.size() + 8);
+        for (size_t index = 0; index < a_value.size(); ++index) {
+            const auto character = a_value[index];
+            if (character == '_') {
+                if (!result.empty() && result.back() != ' ') {
+                    result.push_back(' ');
+                }
+                result.append("- ");
+                continue;
+            }
+
+            const auto uppercase = std::isupper(static_cast<unsigned char>(character)) != 0;
+            const auto previousLowercaseOrDigit = index > 0 && (std::islower(static_cast<unsigned char>(a_value[index - 1])) != 0 || std::isdigit(static_cast<unsigned char>(a_value[index - 1])) != 0);
+            const auto acronymBoundary = index > 0 && index + 1 < a_value.size() && std::isupper(static_cast<unsigned char>(a_value[index - 1])) != 0 && std::islower(static_cast<unsigned char>(a_value[index + 1])) != 0;
+            if (uppercase && (previousLowercaseOrDigit || acronymBoundary) && !result.empty() && result.back() != ' ') {
+                result.push_back(' ');
+            }
+            result.push_back(character);
+        }
+        return result;
+    }
+
     inline float DistanceSquared(const RE::NiPoint3& a_left, const RE::NiPoint3& a_right)
     {
         const auto offset = a_left - a_right;

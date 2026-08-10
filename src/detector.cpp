@@ -5,6 +5,7 @@
 #include "logger.hpp"
 #include "registry.hpp"
 #include "settings.hpp"
+#include "trace.hpp"
 #include "utility.hpp"
 #include "vertices.hpp"
 
@@ -163,7 +164,7 @@ namespace ParticleLightEditor
                 "Detected {} particle light candidate(s) in cell {:08X}; "
                 "found {} placed light reference(s) among {} cell reference(s); "
                 "visited {} billboard(s) and {} direct tri-shape child(ren), "
-                "collected {} named and {} structural candidate(s), spatially matched {}, "
+                "collected {} named and {} structural candidate(s), matched {} to light sources, "
                 "left {} structural candidate(s) unmatched; rejected {} glow-named candidate(s), "
                 "{} shader/alpha candidate(s) and {} topology candidate(s); "
                 "scanned {} light-owned BSFadeNode root(s) plus {} mesh root(s), "
@@ -176,7 +177,7 @@ namespace ParticleLightEditor
                 counters.triShapeCount,
                 counters.nameValidatedCount,
                 counters.structuralCandidateCount,
-                counters.spatialMatchCount,
+                counters.sourceMatchCount,
                 counters.unmatchedStructuralCount,
                 counters.rejectedGlowCount,
                 counters.rejectedShaderCount,
@@ -421,7 +422,7 @@ namespace ParticleLightEditor
                     candidateClaimed[candidateIndex] = true;
                     source.claimed = true;
                     associatedSources[candidateIndex] = sourceIndex;
-                    ++counters.spatialMatchCount;
+                    ++counters.sourceMatchCount;
                     break;
                 }
             }
@@ -436,7 +437,7 @@ namespace ParticleLightEditor
             candidateClaimed[edge.candidateIndex] = true;
             sources[edge.sourceIndex].claimed = true;
             associatedSources[edge.candidateIndex] = edge.sourceIndex;
-            ++counters.spatialMatchCount;
+            ++counters.sourceMatchCount;
         }
 
         std::vector<size_t> validatedParticles;
@@ -495,60 +496,7 @@ namespace ParticleLightEditor
 
             SetParticleLightEdit(entry);
             entries.push_back(std::move(entry));
-
-            const auto associationDistance = source ? std::sqrt(Utility::DistanceSquared(candidate.center, source->position)) : -1.0F;
-            const auto validation = candidate.entry.runtimeAttachment ? "equipped-attachment" : candidate.entry.validatedByName ?
-                (hasAssociation ? "node-name/spatial" : "node-name/unmatched") :
-                (hasAssociation ? (candidate.directLightOwner ? "direct-light-owner" : "spatial-one-to-one") : "base-particle");
-            auto* geometry = candidate.entry.geometry.get();
-            auto* shader = geometry ? Utility::GetEffectShader(*geometry) : nullptr;
-            auto* material = shader ? shader->GetMaterial() : nullptr;
-            auto* renderer = geometry ? geometry->GetGeometryRuntimeData().rendererData : nullptr;
-            logger::info(
-                "Particle light candidate: node='{}', triangles={}, vertices={}, validation='{}', "
-                "objectName='{}', ownerRef={:08X}, baseForm={:08X}, associatedLightRef={:08X}, "
-                "associatedLightBase={:08X}, distance={:.2f}, particleRadius={:.2f}, lightRadius={:.2f}, "
-                "baseEditorID='{}', associatedLightEditorID='{}', associatedLightName='{}', "
-                "category='{}', modelPath='{}', runtimeAttachment={}, "
-                "colorSource='{}', materialColor=({:.3f}, {:.3f}, {:.3f}, {:.3f}), "
-                "effectiveColor=({:.3f}, {:.3f}, {:.3f}, {:.3f}), geometry={:p}, shader={:p}, material={:p}, "
-                "renderer={:p}, rawVertexData={:p}, rendererRefs={}, runtimeNiLight={:p}, runtimeNodeName='{}'",
-                candidate.nodeName,
-                candidate.triangleCount,
-                candidate.vertexCount,
-                validation,
-                candidate.entry.baseName,
-                candidate.entry.ownerFormID,
-                candidate.entry.baseFormID,
-                source ? source->reference->GetFormID() : 0,
-                source ? source->base->GetFormID() : 0,
-                associationDistance,
-                candidate.radius,
-                source ? source->radius : 0.0F,
-                candidate.entry.baseEditorID,
-                !resolvedEditorID.empty() ? resolvedEditorID : "Unavailable",
-                associatedLightName && associatedLightName[0] != '\0' ?
-                    associatedLightName : (!resolvedDisplayName.empty() ? resolvedDisplayName : "Unnamed"),
-                Category::Name(candidate.entry.category),
-                candidate.entry.modelPath.empty() ? "Unavailable" : candidate.entry.modelPath,
-                candidate.entry.runtimeAttachment,
-                candidate.entry.defaults.usesVertexColors ? "vertex" : "material",
-                candidate.entry.defaults.materialColor.red,
-                candidate.entry.defaults.materialColor.green,
-                candidate.entry.defaults.materialColor.blue,
-                candidate.entry.defaults.materialColor.alpha,
-                candidate.entry.defaults.color.red,
-                candidate.entry.defaults.color.green,
-                candidate.entry.defaults.color.blue,
-                candidate.entry.defaults.color.alpha,
-                static_cast<void*>(geometry),
-                static_cast<void*>(shader),
-                static_cast<void*>(material),
-                static_cast<void*>(renderer),
-                renderer ? static_cast<void*>(renderer->rawVertexData) : nullptr,
-                renderer ? renderer->refCount : 0,
-                runtimeRecord ? static_cast<void*>(runtimeRecord->light.get()) : nullptr,
-                runtimeRecord ? runtimeRecord->runtimeNodeName : "Not Captured");
+            Trace::Candidate(entries.back(), candidate, source);
         }
 
     }

@@ -6,6 +6,7 @@
 #include "controls.hpp"
 #include "logger.hpp"
 #include "settings.hpp"
+#include "utility.hpp"
 
 namespace ParticleLightEditor::Menu
 {
@@ -96,7 +97,8 @@ namespace ParticleLightEditor::Menu
     {
         const auto hasSource = a_editor.associatedLightRefID != 0;
         const auto& sourceName = hasSource ? a_editor.associatedLightName : a_editor.baseEditorID;
-        GUI::Text("Source light: %s [%08X]", sourceName.empty() ? "Unnamed" : sourceName.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
+        const auto sourceLabel = Utility::BeautifyLabel(sourceName.empty() ? "Unnamed" : sourceName);
+        GUI::Text("Source light: %s [%08X]", sourceLabel.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
         GUI::Text("Category: %s", Category::Name(a_editor.category));
     }
 
