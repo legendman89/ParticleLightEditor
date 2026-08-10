@@ -1,7 +1,12 @@
 #pragma once
 
+#include "edit_defs.hpp"
+
 #include <cstring>
 #include <type_traits>
+
+#define EDIT_CHANGED_DEFINE(NAME, CHANGED, COMPARISON) bool CHANGED{ false };
+#define EDIT_CHANGED_CHECK(NAME, CHANGED, COMPARISON) a_edit.CHANGED ||
 
 namespace ParticleLightEditor
 {
@@ -47,10 +52,10 @@ namespace ParticleLightEditor
         RE::NiColorA color{ 1.0F, 1.0F, 1.0F, 1.0F };
         float intensity{ 1.0F };
         float radiusScale{ 1.0F };
-        bool colorChanged{ false };
-        bool intensityChanged{ false };
-        bool radiusChanged{ false };
+        FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_DEFINE)
     };
+
+    inline bool HasChanges(const CategoryRule& a_edit) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CHECK) false; }
 
     using CategoryRuleMap = std::unordered_map<CategoryRuleKey, CategoryRule, CategoryRuleKeyHash>;
     using CategoryOverrideMap = std::unordered_map<std::string, ParticleCategory>;
@@ -75,6 +80,7 @@ namespace ParticleLightEditor
 
         void Reset() noexcept
         {
+            // This should be fine with standard types without custom ctor/dtors.
             std::memset(static_cast<void*>(this), 0, sizeof(*this));
         }
     };
@@ -124,6 +130,7 @@ namespace ParticleLightEditor
         RE::NiPoint3 localPosition;
         float intensity{ 1.0F };
         float radius{ 0.0F };
+        bool enabled{ true };
         ParticleCategory category{ ParticleCategory::kUnclassified };
     };
 
@@ -155,6 +162,7 @@ namespace ParticleLightEditor
         bool hasMaterial{ false };
         RE::NiColorA vertexColor{ 1.0F, 1.0F, 1.0F, 1.0F };
         bool usesVertexColors{ false };
+        bool enabled{ true };
     };
 
     struct Edit
@@ -165,12 +173,12 @@ namespace ParticleLightEditor
         RE::NiPoint3 localPosition;
         float intensity{ 1.0F };
         float radius{ 0.0F };
-        bool colorChanged{ false };
-        bool intensityChanged{ false };
-        bool radiusChanged{ false };
-        bool positionChanged{ false };
+        bool enabled{ true };
+        FOREACH_EDIT_PROPERTY(EDIT_CHANGED_DEFINE)
         bool initialized{ false };
     };
+
+    inline bool HasChanges(const Edit& a_edit) { return FOREACH_EDIT_PROPERTY(EDIT_CHANGED_CHECK) false; }
 
     using EditMap = std::unordered_map<EditKey, Edit, EditKeyHash>;
 
@@ -264,3 +272,6 @@ namespace ParticleLightEditor
     inline constexpr auto kCanvasName = "ParticleLightEditorCanvas";
     inline constexpr RE::NiColorA kDefaultDrawColor{ 1.0F, 0.65F, 0.1F, 0.9F };
 }
+
+#undef EDIT_CHANGED_DEFINE
+#undef EDIT_CHANGED_CHECK

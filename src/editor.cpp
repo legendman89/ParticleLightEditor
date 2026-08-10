@@ -74,6 +74,13 @@ namespace ParticleLightEditor
             return false;
         }
 
+        if (a_edit.enabledChanged) {
+            const auto shouldCull = !a_edit.enabled;
+            if (geometry->GetAppCulled() != shouldCull) {
+                geometry->SetAppCulled(shouldCull);
+            }
+        }
+
         bool materialChanged = false;
         if (a_edit.colorChanged || a_edit.intensityChanged) {
             auto* material = GetEditableMaterial(a_entry);
@@ -158,6 +165,10 @@ namespace ParticleLightEditor
         }
 
         a_entry.currentColor = a_edit.defaults.color;
+        const auto shouldCull = !a_edit.defaults.enabled;
+        if (geometry->GetAppCulled() != shouldCull) {
+            geometry->SetAppCulled(shouldCull);
+        }
         geometry->local = a_edit.defaults.local;
         UpdateTransform(*geometry);
         return true;
@@ -172,13 +183,35 @@ namespace ParticleLightEditor
     std::string Scanner::GetLightLabel(size_t a_index) const
     {
         if (a_index >= editorIndices.size()) {
-            return "<invalid particle light>";
+            return "Invalid Particle Light";
         }
 
         const auto& entry = entries[editorIndices[a_index]];
-        const auto& objectEditorID = entry.baseEditorID.empty() || entry.baseEditorID == "<unavailable>" ? entry.baseName : entry.baseEditorID;
-        return std::format("{} - Particle Light {} [{:08X}]", objectEditorID.empty() || objectEditorID == "<unnamed>" ? "Unnamed Light Fixture" : objectEditorID,
-            entry.particleOrdinal, entry.ownerFormID);
+        const auto& objectEditorID = entry.baseEditorID.empty() || entry.baseEditorID == "Unavailable" ? entry.baseName : entry.baseEditorID;
+        return std::format("{} [{:08X}]", objectEditorID.empty() || objectEditorID == "Unnamed" ? "Unnamed Light Fixture" : objectEditorID, entry.ownerFormID);
+    }
+
+    bool Scanner::LightMatchesFilter(size_t a_index, std::string_view a_filter) const
+    {
+        if (a_index >= editorIndices.size()) {
+            return false;
+        }
+
+        const auto filter = Category::Lowercase(a_filter);
+        if (filter.empty()) {
+            return true;
+        }
+
+        return Category::Lowercase(GetLightLabel(a_index)).contains(filter);
+    }
+
+    bool Scanner::IsLightEdited(size_t a_index) const
+    {
+        if (a_index >= editorIndices.size()) {
+            return false;
+        }
+        const auto* edit = FindEdit(entries[editorIndices[a_index]]);
+        return edit && HasChanges(*edit);
     }
 
     bool Scanner::SelectLight(size_t a_index)
@@ -252,6 +285,9 @@ namespace ParticleLightEditor
             if (!edit.positionChanged) {
                 edit.localPosition = a_entry.defaults.local.translate;
             }
+            if (!edit.enabledChanged) {
+                edit.enabled = a_entry.defaults.enabled;
+            }
             edit.initialized = true;
         }
         else {
@@ -273,6 +309,28 @@ namespace ParticleLightEditor
         }
     }
 
+    void Scanner::ApplyCategoryRule(Edit& a_edit, const CategoryRuleKey& a_key) const
+    {
+        const auto found = categoryRules.find(a_key);
+        if (found == categoryRules.end()) {
+            return;
+        }
+
+        const auto& rule = found->second;
+        if (rule.colorChanged) {
+            a_edit.color = rule.color;
+            a_edit.colorChanged = true;
+        }
+        if (rule.intensityChanged) {
+            a_edit.intensity = rule.intensity;
+            a_edit.intensityChanged = true;
+        }
+        if (rule.radiusChanged && std::isfinite(rule.radiusScale) && rule.radiusScale > 0.0F) {
+            a_edit.radius = a_edit.defaults.radius * rule.radiusScale;
+            a_edit.radiusChanged = true;
+        }
+    }
+
     Edit Scanner::GetEffectiveEdit(const Entry& a_entry) const
     {
         const auto* baseEdit = FindEdit(a_entry);
@@ -281,31 +339,11 @@ namespace ParticleLightEditor
         }
 
         auto effective = *baseEdit;
-        const auto applyRule = [&](const CategoryRuleKey& a_key) {
-            const auto found = categoryRules.find(a_key);
-            if (found == categoryRules.end()) {
-                return;
-            }
-
-            const auto& rule = found->second;
-            if (rule.colorChanged) {
-                effective.color = rule.color;
-                effective.colorChanged = true;
-            }
-            if (rule.intensityChanged) {
-                effective.intensity = rule.intensity;
-                effective.intensityChanged = true;
-            }
-            if (rule.radiusChanged && std::isfinite(rule.radiusScale) && rule.radiusScale > 0.0F) {
-                effective.radius = effective.defaults.radius * rule.radiusScale;
-                effective.radiusChanged = true;
-            }
-        };
 
         if (a_entry.category != ParticleCategory::kUnclassified) {
-            applyRule({ a_entry.category, 0 });
+            ApplyCategoryRule(effective, { a_entry.category, 0 });
             if (a_entry.cellFormID != 0) {
-                applyRule({ a_entry.category, a_entry.cellFormID });
+                ApplyCategoryRule(effective, { a_entry.category, a_entry.cellFormID });
             }
         }
         return effective;
@@ -338,6 +376,7 @@ namespace ParticleLightEditor
         a_state.localPosition = baseEdit->positionChanged ? baseEdit->localPosition : geometry->local.translate;
         a_state.intensity = edit.intensityChanged ? edit.intensity : appearanceMaterial->baseColorScale;
         a_state.radius = edit.radiusChanged ? edit.radius : edit.defaults.radius;
+        a_state.enabled = baseEdit->enabledChanged ? baseEdit->enabled : baseEdit->defaults.enabled;
         a_state.category = entry->category;
         return std::isfinite(a_state.radius) && a_state.radius > 0.0F;
     }
@@ -452,6 +491,22 @@ namespace ParticleLightEditor
         return applied;
     }
 
+    bool Scanner::SetSelectedEnabled(bool a_enabled)
+    {
+        auto* entry = GetSelectedEntry();
+        auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!entry || !edit) {
+            return false;
+        }
+
+        edit->enabled = a_enabled;
+        edit->enabledChanged = true;
+        auto effectiveEdit = GetEffectiveEdit(*entry);
+        const auto applied = Editor::Apply(*entry, effectiveEdit);
+        ReferenceManager::GetSingleton().Capture(*entry, *edit);
+        return applied;
+    }
+
     bool Scanner::ResetSelectedLight()
     {
         auto* entry = GetSelectedEntry();
@@ -475,7 +530,7 @@ namespace ParticleLightEditor
     {
         const auto* entry = GetSelectedEntry();
         const auto* edit = entry ? FindEdit(*entry) : nullptr;
-        return edit && (edit->colorChanged || edit->intensityChanged || edit->radiusChanged || edit->positionChanged);
+        return edit && HasChanges(*edit);
     }
 
     bool Scanner::SetEditScope(EditScope a_scope)
@@ -531,13 +586,23 @@ namespace ParticleLightEditor
             return selected;
         }
 
-        const auto found = std::ranges::find_if(entries, [this](const Entry& a_entry) { return MatchesSelectedScope(a_entry); });
-        return found != entries.end() ? &*found : selected;
+        for (const auto& entry : entries) {
+            if (MatchesSelectedScope(entry)) {
+                return &entry;
+            }
+        }
+        return selected;
     }
 
     size_t Scanner::GetAffectedLightCount() const
     {
-        return static_cast<size_t>(std::ranges::count_if(entries, [this](const Entry& a_entry) { return MatchesSelectedScope(a_entry); }));
+        size_t count = 0;
+        for (const auto& entry : entries) {
+            if (MatchesSelectedScope(entry)) {
+                ++count;
+            }
+        }
+        return count;
     }
 
     bool Scanner::RestoreEntryRuntime(Entry& a_entry)
@@ -603,7 +668,7 @@ namespace ParticleLightEditor
             return IsSelectedLightEdited();
         }
         const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
-        return found != categoryRules.end() && (found->second.colorChanged || found->second.intensityChanged || found->second.radiusChanged);
+        return found != categoryRules.end() && HasChanges(found->second);
     }
 
     void Scanner::UpdateEditorList(RE::PlayerCharacter* a_player)
@@ -619,13 +684,13 @@ namespace ParticleLightEditor
         const auto rangeSquared = range * range;
         const auto playerPosition = a_player->GetPosition();
         editorIndices.reserve(entries.size());
+        std::vector<std::pair<float, size_t>> lightsByDistance;
+        lightsByDistance.reserve(entries.size());
 
         for (size_t index = 0; index < entries.size(); ++index) {
-            // Player attachment bounds are maintained in actor/skeleton space and
-            // are not guaranteed to be comparable to a placed object's world
-            // position. An equipped light is inherently in range of the player.
+            // An equipped light is in range of the player.
             if (entries[index].runtimeAttachment) {
-                editorIndices.push_back(index);
+                lightsByDistance.emplace_back(0.0F, index);
                 continue;
             }
 
@@ -636,8 +701,13 @@ namespace ParticleLightEditor
 
             const auto distanceSquared = Utility::DistanceSquared(geometry->worldBound.center, playerPosition);
             if (std::isfinite(distanceSquared) && distanceSquared <= rangeSquared) {
-                editorIndices.push_back(index);
+                lightsByDistance.emplace_back(distanceSquared, index);
             }
+        }
+
+        std::ranges::sort(lightsByDistance);
+        for (const auto& light : lightsByDistance) {
+            editorIndices.push_back(light.second);
         }
 
         if (std::ranges::find(editorIndices, selectedIndex) == editorIndices.end()) {

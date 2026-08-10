@@ -58,7 +58,7 @@ namespace ParticleLightEditor::Settings
     {
         json records = json::array();
         for (const auto& [key, edit] : a_edits) {
-            if (!edit.colorChanged && !edit.intensityChanged && !edit.radiusChanged && !edit.positionChanged) {
+            if (!HasChanges(edit)) {
                 continue;
             }
 
@@ -77,6 +77,9 @@ namespace ParticleLightEditor::Settings
             }
             if (edit.positionChanged) {
                 record["position"] = { edit.localPosition.x, edit.localPosition.y, edit.localPosition.z };
+            }
+            if (edit.enabledChanged) {
+                record["enabled"] = edit.enabled;
             }
             records.push_back(std::move(record));
         }
@@ -133,6 +136,10 @@ namespace ParticleLightEditor::Settings
                     edit.localPosition = { position.at(0).get<float>(), position.at(1).get<float>(), position.at(2).get<float>() };
                     edit.positionChanged = true;
                 }
+                if (record.contains("enabled")) {
+                    edit.enabled = record.at("enabled").get<bool>();
+                    edit.enabledChanged = true;
+                }
                 a_edits[key] = edit;
             }
         }
@@ -148,7 +155,7 @@ namespace ParticleLightEditor::Settings
     {
         json records = json::array();
         for (const auto& [key, rule] : a_rules) {
-            if (key.category == ParticleCategory::kUnclassified || (!rule.colorChanged && !rule.intensityChanged && !rule.radiusChanged)) {
+            if (key.category == ParticleCategory::kUnclassified || !HasChanges(rule)) {
                 continue;
             }
 
@@ -274,24 +281,11 @@ namespace ParticleLightEditor::Settings
         return true;
     }
 
-    bool EditEqual(const Edit& a_left, const Edit& a_right)
-    {
-        if (a_left.colorChanged != a_right.colorChanged || a_left.intensityChanged != a_right.intensityChanged ||
-            a_left.radiusChanged != a_right.radiusChanged || a_left.positionChanged != a_right.positionChanged) {
-            return false;
-        }
-
-        return (!a_left.colorChanged || Utility::ColorsEqual(a_left.color, a_right.color)) &&
-            (!a_left.intensityChanged || a_left.intensity == a_right.intensity) &&
-            (!a_left.radiusChanged || a_left.radius == a_right.radius) &&
-            (!a_left.positionChanged || Utility::PointsEqual(a_left.localPosition, a_right.localPosition));
-    }
-
     bool EditsEqual(const EditMap& a_left, const EditMap& a_right)
     {
         size_t changedCount = 0;
         for (const auto& [key, edit] : a_left) {
-            if (!edit.colorChanged && !edit.intensityChanged && !edit.radiusChanged && !edit.positionChanged) {
+            if (!HasChanges(edit)) {
                 continue;
             }
 
@@ -305,7 +299,7 @@ namespace ParticleLightEditor::Settings
         size_t rightChangedCount = 0;
         for (const auto& record : a_right) {
             const auto& edit = record.second;
-            if (edit.colorChanged || edit.intensityChanged || edit.radiusChanged || edit.positionChanged) {
+            if (HasChanges(edit)) {
                 ++rightChangedCount;
             }
         }
@@ -323,10 +317,7 @@ namespace ParticleLightEditor::Settings
                 return false;
             }
             const auto& right = found->second;
-            if (left.colorChanged != right.colorChanged || left.intensityChanged != right.intensityChanged || left.radiusChanged != right.radiusChanged ||
-                (left.colorChanged && !Utility::ColorsEqual(left.color, right.color)) ||
-                (left.intensityChanged && left.intensity != right.intensity) ||
-                (left.radiusChanged && left.radiusScale != right.radiusScale)) {
+            if (!CategoryRuleEqual(left, right)) {
                 return false;
             }
         }

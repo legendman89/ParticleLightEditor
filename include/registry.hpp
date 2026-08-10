@@ -38,7 +38,7 @@ namespace ParticleLightEditor
     
         static std::string ResolveNodeName(const RE::NiPointLight* a_source)
         {
-            return !a_source || a_source->name.empty() ? "<unnamed NiLight>" : a_source->name.c_str();
+            return !a_source || a_source->name.empty() ? "Unnamed NiLight" : a_source->name.c_str();
         }
 
         mutable std::mutex lock;

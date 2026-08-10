@@ -3,6 +3,7 @@
 #include "scanner.hpp"
 #include "settings_defs.hpp"
 #include "types.hpp"
+#include "utility.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -17,6 +18,11 @@ using json = nlohmann::json;
 #define COLOR_SETTING_DEFINE(NAME, RED, GREEN, BLUE, ALPHA) std::array<float, 4> NAME{ RED, GREEN, BLUE, ALPHA };
 #define SETTING_EQUAL(NAME, DEFAULT_VALUE) a_left.NAME == a_right.NAME &&
 #define COLOR_SETTING_EQUAL(NAME, RED, GREEN, BLUE, ALPHA) a_left.NAME == a_right.NAME &&
+#define EDIT_PROPERTY_FLAG_EQUAL(NAME, CHANGED, COMPARISON) a_left.CHANGED == a_right.CHANGED &&
+#define EDIT_PROPERTY_VALUE_EQUAL(NAME, CHANGED, COMPARISON) (!a_left.CHANGED || EDIT_PROPERTY_COMPARE_##COMPARISON(NAME)) &&
+#define EDIT_PROPERTY_COMPARE_COLOR(NAME) Utility::ColorsEqual(a_left.NAME, a_right.NAME)
+#define EDIT_PROPERTY_COMPARE_POINT(NAME) Utility::PointsEqual(a_left.NAME, a_right.NAME)
+#define EDIT_PROPERTY_COMPARE_VALUE(NAME) a_left.NAME == a_right.NAME
 
 namespace ParticleLightEditor::Settings
 {
@@ -47,8 +53,6 @@ namespace ParticleLightEditor::Settings
     json CategoryOverridesToJson(const CategoryOverrideMap& a_overrides);
 
     bool CategoryOverridesFromJson(const json& a_json, CategoryOverrideMap& a_overrides);
-
-    bool EditEqual(const Edit& a_left, const Edit& a_right);
 
     bool EditsEqual(const EditMap& a_left, const EditMap& a_right);
 
@@ -125,6 +129,10 @@ namespace ParticleLightEditor::Settings
         return FOREACH_DETECTION_BOOL_SETTING(SETTING_EQUAL) FOREACH_DETECTION_FLOAT_SETTING(SETTING_EQUAL) FOREACH_DETECTION_INT_SETTING(SETTING_EQUAL) true; 
     }
 
+    inline bool EditEqual(const Edit& a_left, const Edit& a_right) { return FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL) true; }
+
+    inline bool CategoryRuleEqual(const CategoryRule& a_left, const CategoryRule& a_right) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL) true; }
+
     inline bool AreEditsDirty()
     {
         const auto& scanner = Scanner::GetSingleton();
@@ -158,3 +166,8 @@ namespace ParticleLightEditor::Settings
 #undef COLOR_SETTING_DEFINE
 #undef SETTING_EQUAL
 #undef COLOR_SETTING_EQUAL
+#undef EDIT_PROPERTY_FLAG_EQUAL
+#undef EDIT_PROPERTY_VALUE_EQUAL
+#undef EDIT_PROPERTY_COMPARE_COLOR
+#undef EDIT_PROPERTY_COMPARE_POINT
+#undef EDIT_PROPERTY_COMPARE_VALUE

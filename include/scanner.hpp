@@ -24,6 +24,10 @@ namespace ParticleLightEditor
 
         std::string GetLightLabel(size_t a_index) const;
 
+        bool LightMatchesFilter(size_t a_index, std::string_view a_filter) const;
+
+        bool IsLightEdited(size_t a_index) const;
+
         bool SelectLight(size_t a_index);
 
         size_t SelectReference(RE::TESObjectREFR* a_reference);
@@ -37,6 +41,8 @@ namespace ParticleLightEditor
         bool SetSelectedRadius(float a_radius);
 
         bool SetSelectedLocalPosition(const RE::NiPoint3& a_position);
+
+        bool SetSelectedEnabled(bool a_enabled);
 
         bool ResetSelectedLight();
 
@@ -110,6 +116,8 @@ namespace ParticleLightEditor
         void SetParticleLightEdit(Entry& a_entry);
 
         void ApplyParticleLightEdits();
+
+        void ApplyCategoryRule(Edit& a_edit, const CategoryRuleKey& a_key) const;
 
         Edit GetEffectiveEdit(const Entry& a_entry) const;
 

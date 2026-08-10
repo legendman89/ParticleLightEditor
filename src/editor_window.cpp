@@ -9,6 +9,12 @@
 
 namespace ParticleLightEditor::Menu
 {
+    bool SelectionMatchesFilter(const Scanner& a_scanner, const State& a_state, size_t a_index)
+    {
+        return (!a_state.editedLightsOnly || a_scanner.IsLightEdited(a_index)) &&
+            a_scanner.LightMatchesFilter(a_index, a_state.lightFilter.data());
+    }
+
     bool SetEditorWindowOpen(bool a_open)
     {
         auto* window = GetState().editorWindow;
@@ -29,6 +35,23 @@ namespace ParticleLightEditor::Menu
     {
         auto& scanner = Scanner::GetSingleton();
         auto& state = GetState();
+        size_t resultCount = 0;
+        for (size_t index = 0; index < scanner.GetLightCount(); ++index) {
+            if (SelectionMatchesFilter(scanner, state, index)) {
+                ++resultCount;
+            }
+        }
+
+        GUI::SetNextItemWidth(420.0F);
+        GUI::InputText("Filter##ParticleLightFilter", state.lightFilter.data(), state.lightFilter.size());
+        Controls::Tooltip("Search the object text or Form ID shown in the list.");
+        GUI::SameLine(0.0F, 12.0F);
+        GUI::Checkbox("Edited only##ParticleLightFilter", &state.editedLightsOnly);
+        GUI::SameLine(0.0F, 12.0F);
+        GUI::Text("%llu of %llu", resultCount, scanner.GetLightCount());
+
+        GUI::Spacing();
+
         const auto selectedIndex = scanner.GetSelectedLightIndex();
         const auto selectedLabel = scanner.GetLightLabel(selectedIndex);
         constexpr auto spacing = 8.0F;
@@ -42,9 +65,13 @@ namespace ParticleLightEditor::Menu
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ comboPaddingX, comboPaddingY });
         if (GUI::BeginCombo("##SelectedParticleLight", selectedLabel.c_str())) {
             for (size_t index = 0; index < scanner.GetLightCount(); ++index) {
+                if (!SelectionMatchesFilter(scanner, state, index)) {
+                    continue;
+                }
                 const auto label = scanner.GetLightLabel(index);
+                const auto itemLabel = std::format("{}##ParticleLight{}", label, index);
                 const auto selected = index == selectedIndex;
-                if (GUI::Selectable(label.c_str(), selected)) {
+                if (GUI::Selectable(itemLabel.c_str(), selected)) {
                     scanner.SelectLight(index);
                     state.consoleStatus.clear();
                 }
@@ -69,7 +96,7 @@ namespace ParticleLightEditor::Menu
     {
         const auto hasSource = a_editor.associatedLightRefID != 0;
         const auto& sourceName = hasSource ? a_editor.associatedLightName : a_editor.baseEditorID;
-        GUI::Text("Source light: %s [%08X]", sourceName.empty() ? "<unnamed>" : sourceName.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
+        GUI::Text("Source light: %s [%08X]", sourceName.empty() ? "Unnamed" : sourceName.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
         GUI::Text("Category: %s", Category::Name(a_editor.category));
     }
 
@@ -120,9 +147,21 @@ namespace ParticleLightEditor::Menu
         GUI::Spacing();
         GUI::Spacing();
 
+        auto enabled = a_editor.enabled;
         if (GUI::CollapsingHeader("Appearance", GUI::ImGuiTreeNodeFlags_DefaultOpen)) {
 
             GUI::Spacing();
+
+            if (GUI::Checkbox("Particle light enabled (this light)", &enabled)) {
+                scanner.SetSelectedEnabled(enabled);
+            }
+            Controls::Tooltip("Show or hide only the selected particle-light geometry. It remains available in the editor while disabled.");
+
+            GUI::Spacing();
+
+            if (!enabled) {
+                GUI::BeginDisabled();
+            }
 
             std::array color{ a_editor.color.red, a_editor.color.green, a_editor.color.blue, a_editor.color.alpha };
             constexpr auto colorFlags = GUI::ImGuiColorEditFlags_DisplayRGB | GUI::ImGuiColorEditFlags_AlphaBar;
@@ -136,11 +175,18 @@ namespace ParticleLightEditor::Menu
             if (GUI::SliderFloat("Intensity", &intensity, 0.0F, 10.0F, "%.3f")) {
                 scanner.SetSelectedIntensity(intensity);
             }
+
+            if (!enabled) {
+                GUI::EndDisabled();
+            }
         }
 
         GUI::Spacing();
         GUI::Spacing();
 
+        if (!enabled) {
+            GUI::BeginDisabled();
+        }
         if (GUI::CollapsingHeader("Geometry", GUI::ImGuiTreeNodeFlags_DefaultOpen)) {
             
             GUI::Spacing();
@@ -158,6 +204,9 @@ namespace ParticleLightEditor::Menu
                 scanner.SetSelectedLocalPosition({ position[0], position[1], position[2] });
             }
             Controls::Tooltip("Local position always changes only the selected light because different meshes use different pivots.");
+        }
+        if (!enabled) {
+            GUI::EndDisabled();
         }
     }
 

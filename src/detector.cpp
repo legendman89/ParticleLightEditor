@@ -81,7 +81,7 @@ namespace ParticleLightEditor
                 FindTorchBranches(root, torchBranches);
             }
             for (auto* branch : torchBranches) {
-                branchNames.emplace_back(branch->name.empty() ? "<unnamed>" : branch->name.c_str());
+                branchNames.emplace_back(branch->name.empty() ? "Unnamed" : branch->name.c_str());
                 VisitNodeBranch(branch, a_player, a_visited, false, false, false, equippedLight, true);
             }
         }
@@ -299,15 +299,14 @@ namespace ParticleLightEditor
             auto baseEditorID = base ? clib_util::editorID::get_editorID(base) : std::string{};
             if (baseEditorID.empty()) {
                 const auto* editorID = base ? base->GetFormEditorID() : nullptr;
-                baseEditorID = editorID && editorID[0] != '\0' ? editorID : "<unavailable>";
+                baseEditorID = editorID && editorID[0] != '\0' ? editorID : "Unavailable";
             }
             const auto* objectName = base ? base->GetName() : nullptr;
-            const std::string baseName =
-                objectName && objectName[0] != '\0' ? objectName : "<unnamed>";
+            const std::string baseName = objectName && objectName[0] != '\0' ? objectName : "Unnamed";
             const auto* model = base ? base->As<RE::TESModel>() : nullptr;
             const auto* modelName = model ? model->GetModel() : nullptr;
             const std::string modelPath = modelName && modelName[0] != '\0' ? modelName : "";
-            const auto* nodeName = triShape->name.empty() ? "<unnamed>" : triShape->name.c_str();
+            const auto* nodeName = triShape->name.empty() ? "Unnamed" : triShape->name.c_str();
 
             const auto radius = triShape->worldBound.radius * 0.5F;
             if (!std::isfinite(radius) || radius <= 0.0F) {
@@ -329,6 +328,7 @@ namespace ParticleLightEditor
             entry.runtimeAttachment = a_runtimeAttachment;
             entry.defaults.local = triShape->local;
             entry.defaults.radius = radius;
+            entry.defaults.enabled = !triShape->GetAppCulled();
             if (auto* material = shader->GetMaterial()) {
                 entry.defaults.color = material->baseColor;
                 entry.defaults.materialColor = material->baseColor;
@@ -476,20 +476,17 @@ namespace ParticleLightEditor
             if (source) {
                 runtimeRecord = Registry::GetSingleton().FindByReference(source->reference->GetFormID());
             }
-            const auto resolvedEditorID = runtimeRecord && !runtimeRecord->editorID.empty() ?
-                runtimeRecord->editorID : (source ? Registry::ResolveEditorID(source->base) : std::string{});
-            const auto resolvedDisplayName = runtimeRecord ?
-                runtimeRecord->displayName : (source ? Registry::ResolveDisplayName(source->base) : std::string{});
+            const auto resolvedEditorID = runtimeRecord && !runtimeRecord->editorID.empty() ? runtimeRecord->editorID : (source ? Registry::ResolveEditorID(source->base) : std::string{});
+            const auto resolvedDisplayName = runtimeRecord ? runtimeRecord->displayName : (source ? Registry::ResolveDisplayName(source->base) : std::string{});
             auto entry = candidate.entry;
             if (runtimeRecord) {
                 entry.runtimeLight = runtimeRecord->light;
             }
             entry.associatedLightRefID = source ? source->reference->GetFormID() : 0;
             entry.associatedLightBaseID = source ? source->base->GetFormID() : 0;
-            entry.associatedLightEditorID = !resolvedEditorID.empty() ? resolvedEditorID : "<unavailable>";
-            entry.associatedLightName = associatedLightName && associatedLightName[0] != '\0' ?
-                associatedLightName : (!resolvedDisplayName.empty() ? resolvedDisplayName : "<unnamed>");
-            entry.runtimeLightNodeName = runtimeRecord ? runtimeRecord->runtimeNodeName : "<not captured>";
+            entry.associatedLightEditorID = !resolvedEditorID.empty() ? resolvedEditorID : "Unavailable";
+            entry.associatedLightName = associatedLightName && associatedLightName[0] != '\0' ? associatedLightName : (!resolvedDisplayName.empty() ? resolvedDisplayName : "Unnamed");
+            entry.runtimeLightNodeName = runtimeRecord ? runtimeRecord->runtimeNodeName : "Not Captured";
 
             const auto sourceIdentity = entry.runtimeAttachment ? entry.baseFormID :
                 (entry.associatedLightRefID != 0 ? entry.associatedLightRefID : (entry.ownerFormID != 0 ? entry.ownerFormID : entry.baseFormID));
@@ -529,11 +526,11 @@ namespace ParticleLightEditor
                 candidate.radius,
                 source ? source->radius : 0.0F,
                 candidate.entry.baseEditorID,
-                !resolvedEditorID.empty() ? resolvedEditorID : "<unavailable>",
+                !resolvedEditorID.empty() ? resolvedEditorID : "Unavailable",
                 associatedLightName && associatedLightName[0] != '\0' ?
-                    associatedLightName : (!resolvedDisplayName.empty() ? resolvedDisplayName : "<unnamed>"),
+                    associatedLightName : (!resolvedDisplayName.empty() ? resolvedDisplayName : "Unnamed"),
                 Category::Name(candidate.entry.category),
-                candidate.entry.modelPath.empty() ? "<unavailable>" : candidate.entry.modelPath,
+                candidate.entry.modelPath.empty() ? "Unavailable" : candidate.entry.modelPath,
                 candidate.entry.runtimeAttachment,
                 candidate.entry.defaults.usesVertexColors ? "vertex" : "material",
                 candidate.entry.defaults.materialColor.red,
@@ -551,7 +548,7 @@ namespace ParticleLightEditor
                 renderer ? static_cast<void*>(renderer->rawVertexData) : nullptr,
                 renderer ? renderer->refCount : 0,
                 runtimeRecord ? static_cast<void*>(runtimeRecord->light.get()) : nullptr,
-                runtimeRecord ? runtimeRecord->runtimeNodeName : "<not captured>");
+                runtimeRecord ? runtimeRecord->runtimeNodeName : "Not Captured");
         }
 
     }

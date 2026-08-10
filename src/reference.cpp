@@ -14,7 +14,7 @@ namespace ParticleLightEditor
             return;
         }
 
-        const auto changed = a_edit.colorChanged || a_edit.intensityChanged || a_edit.radiusChanged || a_edit.positionChanged;
+        const auto changed = HasChanges(a_edit);
         std::scoped_lock lock(mutex);
         auto& referenceEdits = editsByReference[a_entry.ownerFormID];
         auto found = referenceEdits.end();

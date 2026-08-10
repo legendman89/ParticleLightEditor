@@ -24,7 +24,7 @@ namespace ParticleLightEditor
     std::string Registry::ResolveDisplayName(const RE::TESObjectLIGH* a_source)
     {
         if (!a_source) {
-            return "<unknown light>";
+            return "Unknown Light";
         }
 
         if (auto editorID = ResolveEditorID(a_source); !editorID.empty()) {
@@ -78,7 +78,7 @@ namespace ParticleLightEditor
             static_cast<void*>(a_runtimeLight),
             record.referenceFormID,
             record.baseFormID,
-            record.editorID.empty() ? "<unavailable>" : record.editorID,
+            record.editorID.empty() ? "Unavailable" : record.editorID,
             record.displayName,
             record.runtimeNodeName);
     }

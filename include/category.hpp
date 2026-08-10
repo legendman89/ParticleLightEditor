@@ -69,13 +69,13 @@ namespace ParticleLightEditor::Category
         // Never combine fields: a candle record might use a model whose path contains 
         // "chandelier" (and vice versa). Prefer the record EditorID, then fall back 
         // one field at a time only when unavailable.
-        if (!a_entry.baseEditorID.empty() && a_entry.baseEditorID != "<unavailable>") {
+        if (!a_entry.baseEditorID.empty() && a_entry.baseEditorID != "Unavailable") {
             return ClassifyIdentity(a_entry.baseEditorID);
         }
         if (!a_entry.modelPath.empty()) {
             return ClassifyIdentity(a_entry.modelPath);
         }
-        if (!a_entry.baseName.empty() && a_entry.baseName != "<unnamed>") {
+        if (!a_entry.baseName.empty() && a_entry.baseName != "Unnamed") {
             return ClassifyIdentity(a_entry.baseName);
         }
         return ClassifyIdentity(a_entry.nodeName);

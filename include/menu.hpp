@@ -13,6 +13,8 @@ namespace ParticleLightEditor::Menu
     {
         SKSEMenuFramework::Model::WindowInterface* editorWindow{ nullptr };
         std::string consoleStatus;
+        std::array<char, 256> lightFilter{};
+        bool editedLightsOnly{ false };
     };
 
     inline State& GetState()
