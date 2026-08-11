@@ -7,8 +7,6 @@ namespace GUI = ImGuiMCP;
 
 namespace ParticleLightEditor::Menu
 {
-    inline constexpr const char* kLogLevels[]{ "Trace", "Debug", "Info", "Warning", "Error", "Critical", "Off" };
-    
     struct State
     {
         SKSEMenuFramework::Model::WindowInterface* editorWindow{ nullptr };

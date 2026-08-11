@@ -3,6 +3,7 @@
 #include "controls.hpp"
 #include "scanner.hpp"
 #include "settings.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor::Menu
 {
@@ -19,22 +20,24 @@ namespace ParticleLightEditor::Menu
     void RenderToolsActions()
     {
         constexpr auto spacing = 8.0F;
-        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings", Icons::kSave);
-        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults", Icons::kReset);
+        const auto& saveLabel = Trans::Tr("Common.SaveSettings");
+        const auto& defaultsLabel = Trans::Tr("Common.LoadDefaults");
+        const auto saveWidth = Controls::IconCTAButtonWidth(saveLabel.c_str(), Icons::kSave);
+        const auto defaultsWidth = Controls::IconCTAButtonWidth(defaultsLabel.c_str(), Icons::kReset);
         Controls::AlignActions(saveWidth + defaultsWidth + spacing);
 
         GUI::Spacing();
         
-        if (Controls::IconCTAButton("Save Settings", Settings::IsToolsDirty(), Icons::kSave)) {
+        if (Controls::IconCTAButton(saveLabel.c_str(), Settings::IsToolsDirty(), Icons::kSave)) {
             Settings::Save();
         }
-        Controls::Tooltip("Save visualization, overlay, and logging options.");
+        Controls::Tooltip(Trans::Tr("Tools.Save.Tooltip").c_str());
         GUI::SameLine(0.0F, spacing);
 
-        if (Controls::IconCTAButton("Load Defaults", !Settings::IsToolsDefault(), Icons::kReset)) {
+        if (Controls::IconCTAButton(defaultsLabel.c_str(), !Settings::IsToolsDefault(), Icons::kReset)) {
             Settings::ResetToolsDefaults();
         }
-        Controls::Tooltip("Restore default visualization, overlay, and logging options.");
+        Controls::Tooltip(Trans::Tr("Tools.Defaults.Tooltip").c_str());
         Controls::FinishActions();
     }
 
@@ -44,38 +47,46 @@ namespace ParticleLightEditor::Menu
         const auto stats = Scanner::GetSingleton().GetStats();
         constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
 
-        if (GUI::CollapsingHeader("Visualization", defaultOpen)) {
+        const auto visualizationHeader = std::format("{}##Visualization", Trans::Tr("Tools.Visualization.Header"));
+        if (GUI::CollapsingHeader(visualizationHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
-            GUI::Checkbox("Draw particle lights", &settings.drawLights);
+            const auto drawLabel = std::format("{}##DrawParticleLights", Trans::Tr("Tools.Visualization.Draw"));
+            GUI::Checkbox(drawLabel.c_str(), &settings.drawLights);
 
             GUI::Spacing();
 
-            GUI::SliderFloat("Radius scale", &settings.drawRadiusScale, 0.05F, 2.0F, "%.2f");
+            const auto radiusLabel = std::format("{}##DrawRadiusScale", Trans::Tr("Tools.Visualization.RadiusScale"));
+            GUI::SliderFloat(radiusLabel.c_str(), &settings.drawRadiusScale, 0.05F, 2.0F, "%.2f");
 
             GUI::Spacing();
 
-            GUI::SliderFloat("Line thickness", &settings.lineThickness, 0.25F, 5.0F, "%.2f");
+            const auto thicknessLabel = std::format("{}##LineThickness", Trans::Tr("Tools.Visualization.LineThickness"));
+            GUI::SliderFloat(thicknessLabel.c_str(), &settings.lineThickness, 0.25F, 5.0F, "%.2f");
 
             GUI::Spacing();
 
-            GUI::SliderInt("Circle segments", &settings.circleSegments, 4, 48);
+            const auto segmentsLabel = std::format("{}##CircleSegments", Trans::Tr("Tools.Visualization.CircleSegments"));
+            GUI::SliderInt(segmentsLabel.c_str(), &settings.circleSegments, 4, 48);
         }
 
         GUI::Spacing();
         GUI::Spacing();
 
-        if (GUI::CollapsingHeader("Overlay Details", defaultOpen)) {
+        const auto overlayHeader = std::format("{}##OverlayDetails", Trans::Tr("Tools.Overlay.Header"));
+        if (GUI::CollapsingHeader(overlayHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
             constexpr auto colorEditFlags = GUI::ImGuiColorEditFlags_DisplayRGB | GUI::ImGuiColorEditFlags_AlphaBar;
-            GUI::Checkbox("Draw center markers", &settings.drawCenterMarkers);
+            const auto centersLabel = std::format("{}##DrawCenterMarkers", Trans::Tr("Tools.Overlay.DrawCenters"));
+            GUI::Checkbox(centersLabel.c_str(), &settings.drawCenterMarkers);
 
             GUI::Spacing();
 
-            GUI::SliderFloat("Center marker radius", &settings.centerMarkerRadius, 1.0F, 32.0F, "%.1f");
+            const auto centerRadiusLabel = std::format("{}##CenterMarkerRadius", Trans::Tr("Tools.Overlay.CenterRadius"));
+            GUI::SliderFloat(centerRadiusLabel.c_str(), &settings.centerMarkerRadius, 1.0F, 32.0F, "%.1f");
 
             GUI::Spacing();
 
@@ -83,11 +94,12 @@ namespace ParticleLightEditor::Menu
 
             GUI::ColorEdit4("##CenterMarkerColor", settings.centerMarkerColor.data(), colorEditFlags);
             GUI::SameLine();
-            GUI::TextUnformatted("Center marker color");
+            GUI::TextUnformatted(Trans::Tr("Tools.Overlay.CenterColor").c_str());
 
             GUI::Spacing();
 
-            GUI::Checkbox("Highlight selected light", &settings.highlightSelectedLight);
+            const auto highlightLabel = std::format("{}##HighlightSelectedLight", Trans::Tr("Tools.Overlay.Highlight"));
+            GUI::Checkbox(highlightLabel.c_str(), &settings.highlightSelectedLight);
 
             GUI::Spacing();
 
@@ -95,70 +107,84 @@ namespace ParticleLightEditor::Menu
             
             GUI::ColorEdit4("##SelectedHighlightColor", settings.selectedHighlightColor.data(), colorEditFlags);
             GUI::SameLine();
-            GUI::TextUnformatted("Selected highlight color");
+            GUI::TextUnformatted(Trans::Tr("Tools.Overlay.HighlightColor").c_str());
         }
 
         GUI::Spacing();
         GUI::Spacing();
 
-        if (GUI::CollapsingHeader("Diagnostics", defaultOpen)) {
+        const auto diagnosticsHeader = std::format("{}##Diagnostics", Trans::Tr("Tools.Diagnostics.Header"));
+        if (GUI::CollapsingHeader(diagnosticsHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
             constexpr auto tableFlags = GUI::ImGuiTableFlags_SizingFixedFit | GUI::ImGuiTableFlags_NoSavedSettings;
             if (GUI::BeginTable("DiagnosticsStats", 4, tableFlags)) {
-                GUI::TableSetupColumn("Metric A", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
-                GUI::TableSetupColumn("Value A", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
-                GUI::TableSetupColumn("Metric B", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
-                GUI::TableSetupColumn("Value B", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
+                GUI::TableSetupColumn("##MetricA", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
+                GUI::TableSetupColumn("##ValueA", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
+                GUI::TableSetupColumn("##MetricB", GUI::ImGuiTableColumnFlags_WidthFixed, 220.0F);
+                GUI::TableSetupColumn("##ValueB", GUI::ImGuiTableColumnFlags_WidthFixed, 90.0F);
 
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("Cached lights", stats.cachedLights);
-                RenderDiagnosticMetric("Drawn lights", stats.draw.drawnCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.CachedLights").c_str(), stats.cachedLights);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.DrawnLights").c_str(), stats.draw.drawnCount);
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("In detection range", Scanner::GetSingleton().GetLightCount());
-                RenderDiagnosticMetric("Cell references", stats.scan.referenceCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.InRange").c_str(), Scanner::GetSingleton().GetLightCount());
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.CellReferences").c_str(), stats.scan.referenceCount);
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("Placed light sources", stats.scan.sourceCount);
-                RenderDiagnosticMetric("Named candidates", stats.scan.nameValidatedCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.LightSources").c_str(), stats.scan.sourceCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.NamedCandidates").c_str(), stats.scan.nameValidatedCount);
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("Structural candidates", stats.scan.structuralCandidateCount);
-                RenderDiagnosticMetric("Source matches", stats.scan.sourceMatchCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.StructuralCandidates").c_str(), stats.scan.structuralCandidateCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.SourceMatches").c_str(), stats.scan.sourceMatchCount);
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("Unmatched structural", stats.scan.unmatchedStructuralCount);
-                RenderDiagnosticMetric("Rejected glow", stats.scan.rejectedGlowCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.UnmatchedStructural").c_str(), stats.scan.unmatchedStructuralCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.RejectedGlow").c_str(), stats.scan.rejectedGlowCount);
                 GUI::TableNextRow();
-                RenderDiagnosticMetric("Rejected shader", stats.scan.rejectedShaderCount);
-                RenderDiagnosticMetric("Rejected topology", stats.scan.rejectedTopologyCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.RejectedShader").c_str(), stats.scan.rejectedShaderCount);
+                RenderDiagnosticMetric(Trans::Tr("Tools.Diagnostics.RejectedTopology").c_str(), stats.scan.rejectedTopologyCount);
                 GUI::EndTable();
             }
 
-            GUI::Checkbox("Show node-name validated lights", &settings.showNameValidated);
-            GUI::Checkbox("Show lights matched to nearby sources", &settings.showRuntimeValidated);
+            const auto namedLabel = std::format("{}##ShowNameValidated", Trans::Tr("Tools.Diagnostics.ShowNamed"));
+            const auto matchedLabel = std::format("{}##ShowRuntimeValidated", Trans::Tr("Tools.Diagnostics.ShowMatched"));
+            GUI::Checkbox(namedLabel.c_str(), &settings.showNameValidated);
+            GUI::Checkbox(matchedLabel.c_str(), &settings.showRuntimeValidated);
 
             GUI::Spacing();
             GUI::Spacing();
 
-            if (Controls::CTAButton("Rescan Cell", true)) {
+            if (Controls::CTAButton(Trans::Tr("Tools.Diagnostics.Rescan").c_str(), true)) {
                 Scanner::GetSingleton().RequestRescan(true);
             }
-            Controls::Tooltip("Discard the current scene cache and scan the attached cell again.");
+            Controls::Tooltip(Trans::Tr("Tools.Diagnostics.Rescan.Tooltip").c_str());
         }
 
         GUI::Spacing();
         GUI::Spacing();
 
-        if (GUI::CollapsingHeader("Logging", defaultOpen)) {
+        const auto loggingHeader = std::format("{}##Logging", Trans::Tr("Tools.Logging.Header"));
+        if (GUI::CollapsingHeader(loggingHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
             auto logLevel = Settings::NormalizeLogLevel(settings.logLevel);
+            const std::array logLevels{
+                Trans::Tr("Log.Trace").c_str(),
+                Trans::Tr("Log.Debug").c_str(),
+                Trans::Tr("Log.Info").c_str(),
+                Trans::Tr("Log.Warning").c_str(),
+                Trans::Tr("Log.Error").c_str(),
+                Trans::Tr("Log.Critical").c_str(),
+                Trans::Tr("Log.Off").c_str()
+            };
             GUI::SetNextItemWidth(180.0F);
-            if (GUI::Combo("Log level", &logLevel, kLogLevels, static_cast<int>(std::size(kLogLevels)))) {
+            const auto logLevelLabel = std::format("{}##LogLevel", Trans::Tr("Tools.Logging.Level"));
+            if (GUI::Combo(logLevelLabel.c_str(), &logLevel, logLevels.data(), static_cast<int>(logLevels.size()))) {
                 settings.logLevel = logLevel;
                 Settings::ApplyLogLevel(logLevel);
             }
-            Controls::Tooltip("Set the minimum severity written to the Particle Light Editor log. Debug includes canvas diagnostics.");
+            Controls::Tooltip(Trans::Tr("Tools.Logging.Level.Tooltip").c_str());
         }
     }
 

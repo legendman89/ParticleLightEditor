@@ -4,31 +4,34 @@
 #include "editor_window.hpp"
 #include "scanner.hpp"
 #include "settings.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor::Menu
 {
     void RenderScannerActions()
     {
         constexpr auto spacing = 8.0F;
-        const auto saveWidth = Controls::IconCTAButtonWidth("Save Settings", Icons::kSave);
-        const auto defaultsWidth = Controls::IconCTAButtonWidth("Load Defaults", Icons::kReset);
+        const auto& saveLabel = Trans::Tr("Common.SaveSettings");
+        const auto& defaultsLabel = Trans::Tr("Common.LoadDefaults");
+        const auto saveWidth = Controls::IconCTAButtonWidth(saveLabel.c_str(), Icons::kSave);
+        const auto defaultsWidth = Controls::IconCTAButtonWidth(defaultsLabel.c_str(), Icons::kReset);
         Controls::AlignActions(saveWidth + defaultsWidth + spacing);
 
         GUI::Spacing();
 
-        if (Controls::IconCTAButton("Save Settings", Settings::IsScannerDirty(), Icons::kSave)) {
+        if (Controls::IconCTAButton(saveLabel.c_str(), Settings::IsScannerDirty(), Icons::kSave)) {
             Settings::Save();
         }
 
-        Controls::Tooltip("Save scanner options and all edited particle lights.");
+        Controls::Tooltip(Trans::Tr("Scanner.Save.Tooltip").c_str());
 
         GUI::SameLine(0.0F, spacing);
 
-        if (Controls::IconCTAButton("Load Defaults", !Settings::IsScannerDefault(), Icons::kReset)) {
+        if (Controls::IconCTAButton(defaultsLabel.c_str(), !Settings::IsScannerDefault(), Icons::kReset)) {
             Settings::ResetScannerDefaults();
             Scanner::GetSingleton().RequestRescan(true);
         }
-        Controls::Tooltip("Restore default scanner and association options.");
+        Controls::Tooltip(Trans::Tr("Scanner.Defaults.Tooltip").c_str());
         Controls::FinishActions();
     }
 
@@ -39,12 +42,12 @@ namespace ParticleLightEditor::Menu
         const auto stats = scanner.GetStats();
         constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
 
-        if (GUI::CollapsingHeader("Particle Lights", defaultOpen)) {
+        const auto selectionHeader = std::format("{}##LightSelection", Trans::Tr("Scanner.Selection.Header"));
+        if (GUI::CollapsingHeader(selectionHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
-            GUI::Text("%llu particle light(s) are available inside the current detection range.", scanner.GetLightCount());
-            GUI::Text("Edits are applied live and restored after loading when saved.");
+            GUI::TextUnformatted(Trans::Tr("Scanner.Selection.Info").c_str());
             if (!GetState().consoleStatus.empty()) {
                 GUI::TextWrapped("%s", GetState().consoleStatus.c_str());
             }
@@ -55,45 +58,50 @@ namespace ParticleLightEditor::Menu
 
             GUI::Spacing();
 
-            if (GUI::Checkbox("Include glow-named nodes", &settings.includeGlowNodes)) {
+            const auto glowLabel = std::format("{}##IncludeGlowNodes", Trans::Tr("Scanner.IncludeGlowNodes"));
+            if (GUI::Checkbox(glowLabel.c_str(), &settings.includeGlowNodes)) {
                 scanner.RequestRescan();
             }
-            GUI::Checkbox("Open Editor after Console Selection", &settings.openEditorAfterConsoleSelection);
-            Controls::Tooltip("The console-selected particle light always appears in the combo when the console closes. Enable this to also open its editor window.");
+
+            const auto consoleLabel = std::format("{}##OpenEditorAfterConsoleSelection", Trans::Tr("Scanner.OpenAfterConsole"));
+            GUI::Checkbox(consoleLabel.c_str(), &settings.openEditorAfterConsoleSelection);
+            Controls::Tooltip(Trans::Tr("Scanner.OpenAfterConsole.Tooltip").c_str());
             
             GUI::Spacing();
 
-            GUI::SliderFloat("Detection range", &settings.drawRange, 2.0F, 8192.0F, "%.0f units");
+            const auto rangeLabel = std::format("{}##DetectionRange", Trans::Tr("Scanner.DetectionRange"));
+            GUI::SliderFloat(rangeLabel.c_str(), &settings.drawRange, 2.0F, 8192.0F, Trans::Tr("Common.Units.Format").c_str());
 
             GUI::Spacing();
 
-            GUI::SliderFloat("Periodic Scanning", &settings.scanInterval, 0.0F, 10.0F, "%.1f s");
-            Controls::Tooltip("Zero disables periodic scanning. Cell changes and manual rescans still refresh immediately.");
+            const auto scanningLabel = std::format("{}##PeriodicScanning", Trans::Tr("Scanner.PeriodicScanning"));
+            GUI::SliderFloat(scanningLabel.c_str(), &settings.scanInterval, 0.0F, 10.0F, Trans::Tr("Common.Seconds.Format").c_str());
+            Controls::Tooltip(Trans::Tr("Scanner.PeriodicScanning.Tooltip").c_str());
 
             GUI::Spacing();
+            GUI::Spacing();
 
-            GUI::Text(
-                "Current cache: %llu lights from %llu cell references and %llu placed light sources.",
-                stats.cachedLights,
-                stats.scan.referenceCount,
-                stats.scan.sourceCount);
+            GUI::TextUnformatted(Trans::Format("Scanner.Cache", stats.cachedLights, stats.scan.referenceCount, stats.scan.sourceCount).c_str());
         }
 
         GUI::Spacing();
         GUI::Spacing();
 
-        if (GUI::CollapsingHeader("Source Association", defaultOpen)) {
+        const auto associationHeader = std::format("{}##SourceAssociation", Trans::Tr("Scanner.Association.Header"));
+        if (GUI::CollapsingHeader(associationHeader.c_str(), defaultOpen)) {
 
             GUI::Spacing();
 
             bool changed = false;
-            changed |= GUI::SliderFloat("Association range", &settings.associationRange, 8.0F, 512.0F, "%.0f units");
-            Controls::Tooltip("Maximum world-space distance between a particle light and a placed Skyrim light source for association. Increasing it can match more lights, but values that are too high may associate unrelated nearby sources.");
+            const auto associationLabel = std::format("{}##AssociationRange", Trans::Tr("Scanner.Association.Range"));
+            changed |= GUI::SliderFloat(associationLabel.c_str(), &settings.associationRange, 8.0F, 512.0F, Trans::Tr("Common.Units.Format").c_str());
+            Controls::Tooltip(Trans::Tr("Scanner.Association.Range.Tooltip").c_str());
             
             GUI::Spacing();
 
-            changed |= GUI::SliderFloat("Radius matching influence", &settings.radiusMatchWeight, 0.0F, 2.0F, "%.2f");
-            Controls::Tooltip("Tie-breaker used when multiple light sources are nearby. Zero uses distance only; higher values prefer sources whose light radius is more similar to the particle radius. This does not change either radius.");
+            const auto influenceLabel = std::format("{}##RadiusMatchingInfluence", Trans::Tr("Scanner.Association.RadiusInfluence"));
+            changed |= GUI::SliderFloat(influenceLabel.c_str(), &settings.radiusMatchWeight, 0.0F, 2.0F, "%.2f");
+            Controls::Tooltip(Trans::Tr("Scanner.Association.RadiusInfluence.Tooltip").c_str());
             if (changed) {
                 scanner.RequestRescan();
             }

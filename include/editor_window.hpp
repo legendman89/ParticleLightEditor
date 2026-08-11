@@ -5,9 +5,10 @@
 #include "category.hpp"
 #include "controls.hpp"
 #include "scanner.hpp"
+#include "translate.hpp"
 #include "utility.hpp"
 
-#define EDIT_PROPERTY_NAME_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: return LABEL;
+#define EDIT_PROPERTY_NAME_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: return Trans::Tr(LABEL).c_str();
 
 namespace ParticleLightEditor::Menu
 {
@@ -61,9 +62,10 @@ namespace ParticleLightEditor::Menu
     {
         const auto hasSource = a_editor.associatedLightRefID != 0;
         const auto& sourceName = hasSource ? a_editor.associatedLightName : a_editor.baseEditorID;
-        const auto sourceLabel = Utility::BeautifyLabel(sourceName.empty() ? "Unnamed" : sourceName);
-        GUI::Text("Source light: %s [%08X]", sourceLabel.c_str(), hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID);
-        GUI::Text("Category: %s", Category::Name(a_editor.category));
+        const auto& sourceText = sourceName.empty() ? Trans::Tr("Common.Unnamed") : sourceName == "Unavailable" ? Trans::Tr("Common.Unavailable") : sourceName;
+        const auto sourceLabel = Utility::BeautifyLabel(sourceText);
+        GUI::TextUnformatted(Trans::Format("Editor.Source", sourceLabel, hasSource ? a_editor.associatedLightRefID : a_editor.ownerFormID).c_str());
+        GUI::TextUnformatted(Trans::Format("Editor.Category", Category::DisplayName(a_editor.category)).c_str());
     }
 
     inline const char* PropertyName(EditProperty a_property)
@@ -71,7 +73,7 @@ namespace ParticleLightEditor::Menu
         switch (a_property) {
             FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_NAME_CASE)
         default:
-            return "Property";
+            return Trans::Tr("Common.Property").c_str();
         }
     }
 
@@ -81,9 +83,9 @@ namespace ParticleLightEditor::Menu
         if (!GUI::BeginTable(a_id, 3, flags)) {
             return false;
         }
-        GUI::TableSetupColumn("Property", GUI::ImGuiTableColumnFlags_WidthFixed, 230.0F);
-        GUI::TableSetupColumn("Value", GUI::ImGuiTableColumnFlags_WidthStretch);
-        GUI::TableSetupColumn("Reset", GUI::ImGuiTableColumnFlags_WidthFixed, 60.0F);
+        GUI::TableSetupColumn(Trans::Tr("Common.Property").c_str(), GUI::ImGuiTableColumnFlags_WidthFixed, 230.0F);
+        GUI::TableSetupColumn(Trans::Tr("Common.Value").c_str(), GUI::ImGuiTableColumnFlags_WidthStretch);
+        GUI::TableSetupColumn(Trans::Tr("Common.Reset").c_str(), GUI::ImGuiTableColumnFlags_WidthFixed, 60.0F);
         return true;
     }
 
@@ -106,13 +108,13 @@ namespace ParticleLightEditor::Menu
         if (Controls::IconOnlyButton(a_id, scanner.IsSelectedPropertyEdited(a_property), Icons::kReset)) {
             const auto selectedOnly = scanner.GetEditScope() == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled;
             if (scanner.ResetSelectedProperty(a_property)) {
-                GetEditorWindowState().status = std::format("{} reset for {}.", PropertyName(a_property), selectedOnly ? "this light" : "the active category scope");
+                GetEditorWindowState().status = Trans::Format("Editor.Reset.Property.Success", PropertyName(a_property), Trans::Tr(selectedOnly ? "Editor.Reset.Property.ThisLight" : "Editor.Reset.Property.Scope"));
             }
             else {
-                GetEditorWindowState().status = std::format("Could not reset {}.", PropertyName(a_property));
+                GetEditorWindowState().status = Trans::Format("Editor.Reset.Property.Failure", PropertyName(a_property));
             }
         }
-        const auto tooltip = std::format("Reset {} for the active edit scope.", PropertyName(a_property));
+        const auto tooltip = Trans::Format("Editor.Reset.Property.Tooltip", PropertyName(a_property));
         Controls::Tooltip(tooltip.c_str());
         GUI::TableNextRow();
         GUI::TableNextColumn();
@@ -130,7 +132,7 @@ namespace ParticleLightEditor::Menu
         state.copiedEdits.intensity = a_editor.intensity;
         state.copiedEdits.radiusScale = a_editor.radius / a_editor.defaultRadius;
         state.copiedEdits.available = std::isfinite(state.copiedEdits.radiusScale) && state.copiedEdits.radiusScale > 0.0F;
-        state.status = state.copiedEdits.available ? "Copied color, opacity, intensity, and radius scale." : "Could not copy the selected light edits.";
+        state.status = Trans::Tr(state.copiedEdits.available ? "Editor.Copy.Success" : "Editor.Copy.Failure");
         return state.copiedEdits.available;
     }
 
@@ -145,22 +147,22 @@ namespace ParticleLightEditor::Menu
         const auto intensityApplied = scanner.SetSelectedIntensity(state.copiedEdits.intensity);
         const auto radiusApplied = scanner.SetSelectedRadius(a_editor.defaultRadius * state.copiedEdits.radiusScale);
         const auto pasted = colorApplied && intensityApplied && radiusApplied;
-        state.status = pasted ? "Pasted color, opacity, intensity, and radius scale." : "Some copied edits could not be pasted.";
+        state.status = Trans::Tr(pasted ? "Editor.Paste.Success" : "Editor.Paste.Failure");
         return pasted;
     }
 
     inline void RenderClipboardActions(const EditorState& a_editor)
     {
         auto& state = GetEditorWindowState();
-        if (Controls::IconCTAButton("Copy Edits", true, Icons::kCopy, 10.0F, "Ctrl+C")) {
+        if (Controls::IconCTAButton(Trans::Tr("Editor.Copy").c_str(), true, Icons::kCopy, 10.0F, "Ctrl+C")) {
             CopyEditorEdits(a_editor);
         }
-        Controls::Tooltip("Copies color, opacity, intensity, and radius scale.");
+        Controls::Tooltip(Trans::Tr("Editor.Copy.Tooltip").c_str());
         GUI::SameLine(0.0F, 8.0F);
-        if (Controls::IconCTAButton("Paste Edits", state.copiedEdits.available && a_editor.enabled, Icons::kPaste, 10.0F, "Ctrl+V")) {
+        if (Controls::IconCTAButton(Trans::Tr("Editor.Paste").c_str(), state.copiedEdits.available && a_editor.enabled, Icons::kPaste, 10.0F, "Ctrl+V")) {
             PasteEditorEdits(a_editor);
         }
-        Controls::Tooltip("Paste the copied appearance and radius scale into the active edit scope.");
+        Controls::Tooltip(Trans::Tr("Editor.Paste.Tooltip").c_str());
     }
 
     inline void HandleEditorShortcuts(const EditorState& a_editor)

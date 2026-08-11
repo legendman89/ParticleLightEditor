@@ -5,6 +5,7 @@
 #include "menu.hpp"
 #include "registry.hpp"
 #include "settings.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor
 {
@@ -54,6 +55,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     SetupLog();
 
     SKSE::GetMessagingInterface()->RegisterListener(ParticleLightEditor::MessageHandler);
+
+    ParticleLightEditor::Trans::GetTranslator().Load();
 
     ParticleLightEditor::Menu::Register();
 

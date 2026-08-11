@@ -4,6 +4,7 @@
 #include "logger.hpp"
 #include "scanner.hpp"
 #include "settings.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor::Menu
 {
@@ -13,7 +14,7 @@ namespace ParticleLightEditor::Menu
         auto& state = GetState();
         const auto reference = RE::Console::GetSelectedRef();
         if (!reference) {
-            state.consoleStatus = "No reference is selected in the console.";
+            state.consoleStatus = Trans::Tr("Console.NoReference");
             logger::info(
                 "Console selection failed: no reference is selected; editorOpenRequested={}, editorRegistered={}, editorIsOpen={}",
                 a_openEditor,
@@ -26,7 +27,7 @@ namespace ParticleLightEditor::Menu
         if (matchCount == 0) {
             SetEditorWindowOpen(false);
             ClearEditorStatus();
-            state.consoleStatus = std::format("Reference {:08X} has no particle lights inside the current detection range.", reference->GetFormID());
+            state.consoleStatus = Trans::Format("Console.NoLights", reference->GetFormID());
             logger::info(
                 "Console-selected reference {:08X}: matched no particle lights; editorOpenRequested={}, editorRegistered={}, editorIsOpen={}",
                 reference->GetFormID(),
@@ -37,10 +38,10 @@ namespace ParticleLightEditor::Menu
         }
 
         if (matchCount == 1) {
-            state.consoleStatus = std::format("Selected the particle light owned by reference {:08X}.", reference->GetFormID());
+            state.consoleStatus = Trans::Format("Console.SelectedOne", reference->GetFormID());
         }
         else {
-            state.consoleStatus = std::format("Selected Particle Light 1 of {} owned by reference {:08X}.", matchCount, reference->GetFormID());
+            state.consoleStatus = Trans::Format("Console.SelectedMany", matchCount, reference->GetFormID());
         }
         ClearEditorStatus();
         const auto editorIsOpen = a_openEditor ? SetEditorWindowOpen(true) : IsEditorWindowOpen();

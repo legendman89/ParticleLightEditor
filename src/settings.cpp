@@ -329,23 +329,23 @@ namespace ParticleLightEditor::Settings
         std::error_code error;
         fs::create_directories(a_path.parent_path(), error);
         if (error) {
-            logger::error("Failed to create settings directory '{}': {}", a_path.parent_path().string(), error.message());
+            logger::error("Failed to create settings directory '{}': {}", Utility::ToUTF8(a_path.parent_path()), error.message());
             return false;
         }
 
         std::ofstream file(a_path);
         if (!file.is_open()) {
-            logger::error("Failed to open settings file for writing: {}", a_path.string());
+            logger::error("Failed to open settings file for writing: {}", Utility::ToUTF8(a_path));
             return false;
         }
 
         file << a_json.dump(4);
         if (!file.good()) {
-            logger::error("Failed while writing settings file: {}", a_path.string());
+            logger::error("Failed while writing settings file: {}", Utility::ToUTF8(a_path));
             return false;
         }
 
-        logger::info("Settings saved: {}", a_path.string());
+        logger::info("Settings saved: {}", Utility::ToUTF8(a_path));
         return true;
     }
 
@@ -353,7 +353,7 @@ namespace ParticleLightEditor::Settings
     {
         std::ifstream file(a_path);
         if (!file.is_open()) {
-            logger::error("Failed to open settings file: {}", a_path.string());
+            logger::error("Failed to open settings file: {}", Utility::ToUTF8(a_path));
             return false;
         }
 
@@ -361,7 +361,7 @@ namespace ParticleLightEditor::Settings
             a_json = json::parse(file, nullptr, true, true);
         }
         catch (const json::exception& error) {
-            logger::error("Failed to parse settings file '{}': {}", a_path.string(), error.what());
+            logger::error("Failed to parse settings file '{}': {}", Utility::ToUTF8(a_path), error.what());
             return false;
         }
 
@@ -403,7 +403,7 @@ namespace ParticleLightEditor::Settings
         std::error_code error;
         const auto exists = fs::exists(path, error);
         if (error) {
-            logger::error("Could not inspect settings file '{}': {}", path.string(), error.message());
+            logger::error("Could not inspect settings file '{}': {}", Utility::ToUTF8(path), error.message());
             return false;
         }
 
@@ -413,10 +413,10 @@ namespace ParticleLightEditor::Settings
                 !CategoryRulesFromJson(data, categoryRules) || !CategoryOverridesFromJson(data, categoryOverrides)) {
                 return false;
             }
-            logger::info("Settings loaded: {}", path.string());
+            logger::info("Settings loaded: {}", Utility::ToUTF8(path));
         }
         else {
-            logger::info("Settings file does not exist; using defaults: {}", path.string());
+            logger::info("Settings file does not exist; using defaults: {}", Utility::ToUTF8(path));
         }
 
         GetSettings() = settings;

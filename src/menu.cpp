@@ -3,6 +3,7 @@
 #include "console.hpp"
 #include "editor_window.hpp"
 #include "logger.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor::Menu
 {
@@ -13,11 +14,11 @@ namespace ParticleLightEditor::Menu
             return;
         }
 
-        SKSEMenuFramework::SetSection("Particle Light Editor");
+        SKSEMenuFramework::SetSection(Trans::Tr("Menu.Section").c_str());
 
-        SKSEMenuFramework::AddSectionItem("Scanner", RenderScanner);
+        SKSEMenuFramework::AddSectionItem(Trans::Tr("Menu.Scanner").c_str(), RenderScanner);
 
-        SKSEMenuFramework::AddSectionItem("Tools", RenderTools);
+        SKSEMenuFramework::AddSectionItem(Trans::Tr("Menu.Tools").c_str(), RenderTools);
 
         auto& state = GetState();
         state.editorWindow = SKSEMenuFramework::AddWindow(RenderEditorWindow, true);

@@ -5,6 +5,7 @@
 #include "reference.hpp"
 #include "logger.hpp"
 #include "settings.hpp"
+#include "translate.hpp"
 #include "utility.hpp"
 #include "vertices.hpp"
 
@@ -183,12 +184,12 @@ namespace ParticleLightEditor
     std::string Scanner::GetLightLabel(size_t a_index) const
     {
         if (a_index >= editorIndices.size()) {
-            return "Invalid Particle Light";
+            return Trans::Tr("Selection.InvalidLight");
         }
 
         const auto& entry = entries[editorIndices[a_index]];
         const auto& objectEditorID = entry.baseEditorID.empty() || entry.baseEditorID == "Unavailable" ? entry.baseName : entry.baseEditorID;
-        const auto label = Utility::BeautifyLabel(objectEditorID.empty() || objectEditorID == "Unnamed" ? "Unnamed Light Fixture" : objectEditorID);
+        const auto label = Utility::BeautifyLabel(objectEditorID.empty() || objectEditorID == "Unnamed" ? Trans::Tr("Selection.UnnamedFixture") : objectEditorID);
         return std::format("{} [{:08X}]", label, entry.ownerFormID);
     }
 

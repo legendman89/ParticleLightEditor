@@ -1,13 +1,13 @@
 #pragma once
 
 #define FOREACH_EDIT_PROPERTY(PROPERTY) \
-    PROPERTY(kColor, color, colorChanged, COLOR, "Color and opacity") \
-    PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Intensity") \
-    PROPERTY(kRadius, radius, radiusChanged, VALUE, "Particle radius") \
-    PROPERTY(kPosition, localPosition, positionChanged, POINT, "Local position") \
-    PROPERTY(kEnabled, enabled, enabledChanged, VALUE, "Enabled state")
+    PROPERTY(kColor, color, colorChanged, COLOR, "Editor.Color") \
+    PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Editor.Intensity") \
+    PROPERTY(kRadius, radius, radiusChanged, VALUE, "Editor.Radius") \
+    PROPERTY(kPosition, localPosition, positionChanged, POINT, "Editor.Position") \
+    PROPERTY(kEnabled, enabled, enabledChanged, VALUE, "Editor.EnabledState")
 
 #define FOREACH_CATEGORY_RULE_PROPERTY(PROPERTY) \
-    PROPERTY(kColor, color, colorChanged, COLOR, "Color and opacity") \
-    PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Intensity") \
-    PROPERTY(kRadius, radiusScale, radiusChanged, VALUE, "Particle radius")
+    PROPERTY(kColor, color, colorChanged, COLOR, "Editor.Color") \
+    PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Editor.Intensity") \
+    PROPERTY(kRadius, radiusScale, radiusChanged, VALUE, "Editor.Radius")

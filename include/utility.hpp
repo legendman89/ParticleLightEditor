@@ -1,7 +1,15 @@
 #pragma once
 
+#include <filesystem>
+
 namespace ParticleLightEditor::Utility
 {
+    inline std::string ToUTF8(const std::filesystem::path& a_path)
+    {
+        const auto value = a_path.u8string();
+        return std::string(reinterpret_cast<const char*>(value.c_str()));
+    }
+
     inline std::string BeautifyLabel(std::string_view a_value)
     {
         std::string result;
@@ -16,10 +24,22 @@ namespace ParticleLightEditor::Utility
                 continue;
             }
 
+            if (character == 'F' && index + 2 < a_value.size() && a_value[index + 1] == 'X' && std::islower(static_cast<unsigned char>(a_value[index + 2])) != 0) {
+                const auto previousLowercaseOrDigit = index > 0 && (std::islower(static_cast<unsigned char>(a_value[index - 1])) != 0 || std::isdigit(static_cast<unsigned char>(a_value[index - 1])) != 0);
+                if (previousLowercaseOrDigit && !result.empty() && result.back() != ' ') {
+                    result.push_back(' ');
+                }
+                result.append("FX ");
+                ++index;
+                continue;
+            }
+
             const auto uppercase = std::isupper(static_cast<unsigned char>(character)) != 0;
             const auto previousLowercaseOrDigit = index > 0 && (std::islower(static_cast<unsigned char>(a_value[index - 1])) != 0 || std::isdigit(static_cast<unsigned char>(a_value[index - 1])) != 0);
             const auto acronymBoundary = index > 0 && index + 1 < a_value.size() && std::isupper(static_cast<unsigned char>(a_value[index - 1])) != 0 && std::islower(static_cast<unsigned char>(a_value[index + 1])) != 0;
-            if (uppercase && (previousLowercaseOrDigit || acronymBoundary) && !result.empty() && result.back() != ' ') {
+            const auto wordBoundary = uppercase && (previousLowercaseOrDigit || acronymBoundary);
+            const auto digitBoundary = std::isdigit(static_cast<unsigned char>(character)) != 0 && index > 0 && std::isalpha(static_cast<unsigned char>(a_value[index - 1])) != 0;
+            if ((wordBoundary || digitBoundary) && !result.empty() && result.back() != ' ') {
                 result.push_back(' ');
             }
             result.push_back(character);

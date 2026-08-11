@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include "translate.hpp"
 
 namespace ParticleLightEditor::Category
 {
@@ -13,6 +14,15 @@ namespace ParticleLightEditor::Category
         "Torch / Brazier"
     };
 
+    inline constexpr const char* kTranslationKeys[]{
+        "Category.Unclassified",
+        "Category.Candle",
+        "Category.Chandelier",
+        "Category.Lantern",
+        "Category.FireEmber",
+        "Category.TorchBrazier"
+    };
+
     inline bool IsValid(ParticleCategory a_category)
     {
         return a_category >= ParticleCategory::kUnclassified && a_category < ParticleCategory::kTotal;
@@ -22,6 +32,21 @@ namespace ParticleLightEditor::Category
     {
         const auto index = static_cast<size_t>(a_category);
         return index < std::size(kNames) ? kNames[index] : kNames[0];
+    }
+
+    inline const char* DisplayName(ParticleCategory a_category)
+    {
+        const auto index = static_cast<size_t>(a_category);
+        return Trans::Tr(index < std::size(kTranslationKeys) ? kTranslationKeys[index] : kTranslationKeys[0]).c_str();
+    }
+
+    inline std::array<const char*, std::size(kTranslationKeys)> DisplayNames()
+    {
+        std::array<const char*, std::size(kTranslationKeys)> names{};
+        for (size_t index = 0; index < names.size(); ++index) {
+            names[index] = Trans::Tr(kTranslationKeys[index]).c_str();
+        }
+        return names;
     }
 
     inline ParticleCategory FromName(std::string_view a_name)

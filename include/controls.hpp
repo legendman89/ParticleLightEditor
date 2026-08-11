@@ -12,6 +12,8 @@ namespace ParticleLightEditor::Menu::Controls
     inline constexpr auto kEditActionButtonWidth = 220.0F;
     inline constexpr auto kEditActionButtonHeight = 50.0F;
     inline constexpr auto kShortcutFontScale = 0.82F;
+    inline constexpr auto kCTAFramePaddingX = 14.0F;
+    inline constexpr auto kCTAFramePaddingY = 6.0F;
 
     struct ActionState
     {
@@ -27,7 +29,7 @@ namespace ParticleLightEditor::Menu::Controls
     inline bool CTAButton(const char* a_label, bool a_enabled)
     {
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameRounding, 6.0F);
-        GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ 14.0F, 6.0F });
+        GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ kCTAFramePaddingX, kCTAFramePaddingY });
         GUI::PushStyleColor(GUI::ImGuiCol_Button, a_enabled ? Color::kCTAOnBackground : Color::kCTAOffBackground);
         GUI::PushStyleColor(GUI::ImGuiCol_ButtonHovered, a_enabled ? Color::kCTAOnHover : Color::kCTAOffHover);
         GUI::PushStyleColor(GUI::ImGuiCol_ButtonActive, a_enabled ? Color::kCTAOnActive : Color::kCTAOffActive);
@@ -49,7 +51,7 @@ namespace ParticleLightEditor::Menu::Controls
     {
         GUI::ImVec2 size{};
         GUI::CalcTextSize(&size, a_label, nullptr, false, -1.0F);
-        return size.x + 28.0F;
+        return size.x + kCTAFramePaddingX * 2.0F;
     }
 
     inline float IconCTAButtonWidth(const char* a_label, unsigned a_icon, float a_iconTextSpacing = 8.0F, const char* a_shortcut = nullptr)
@@ -66,7 +68,7 @@ namespace ParticleLightEditor::Menu::Controls
             GUI::CalcTextSize(&shortcutSize, a_shortcut, nullptr, false, -1.0F);
             shortcutSize.x *= kShortcutFontScale;
         }
-        return 28.0F + iconSize.x + a_iconTextSpacing + labelSize.x + (shortcutSize.x > 0.0F ? shortcutSize.x + 20.0F : 0.0F);
+        return kCTAFramePaddingX * 2.0F + iconSize.x + a_iconTextSpacing + labelSize.x + (shortcutSize.x > 0.0F ? shortcutSize.x + 20.0F : 0.0F);
     }
 
     inline bool IconCTAButton(const char* a_label, bool a_enabled, unsigned a_icon, float a_iconTextSpacing = 8.0F, const char* a_shortcut = nullptr)
@@ -77,7 +79,7 @@ namespace ParticleLightEditor::Menu::Controls
         const GUI::ImVec2 buttonSize{ IconCTAButtonWidth(a_label, a_icon, a_iconTextSpacing, a_shortcut), 0.0F };
 
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FrameRounding, 6.0F);
-        GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ 14.0F, 6.0F });
+        GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ kCTAFramePaddingX, kCTAFramePaddingY });
         GUI::PushStyleColor(GUI::ImGuiCol_Button, a_enabled ? Color::kCTAOnBackground : Color::kCTAOffBackground);
         GUI::PushStyleColor(GUI::ImGuiCol_ButtonHovered, a_enabled ? Color::kCTAOnHover : Color::kCTAOffHover);
         GUI::PushStyleColor(GUI::ImGuiCol_ButtonActive, a_enabled ? Color::kCTAOnActive : Color::kCTAOffActive);
@@ -118,7 +120,7 @@ namespace ParticleLightEditor::Menu::Controls
         FontAwesome::Pop();
 
         const auto contentWidth = iconSize.x + a_iconTextSpacing + labelSize.x;
-        const auto contentStart = hasShortcut ? buttonMin.x + 14.0F : buttonMin.x + (buttonMax.x - buttonMin.x - contentWidth) * 0.5F;
+        const auto contentStart = hasShortcut ? buttonMin.x + kCTAFramePaddingX : buttonMin.x + (buttonMax.x - buttonMin.x - contentWidth) * 0.5F;
         GUI::ImDrawListManager::AddText(
             GUI::GetWindowDrawList(),
             iconFont,
@@ -130,7 +132,7 @@ namespace ParticleLightEditor::Menu::Controls
         GUI::ImDrawListManager::AddText(GUI::GetWindowDrawList(), GUI::ImVec2{ contentStart + iconSize.x + a_iconTextSpacing, buttonMin.y + (buttonMax.y - buttonMin.y - labelSize.y) * 0.5F }, iconColor, a_label);
 
         if (hasShortcut) {
-            GUI::ImDrawListManager::AddText(GUI::GetWindowDrawList(), textFont, textFontSize * kShortcutFontScale, GUI::ImVec2{ buttonMax.x - 14.0F - shortcutSize.x, buttonMin.y + (buttonMax.y - buttonMin.y - shortcutSize.y) * 0.5F }, iconColor, a_shortcut);
+            GUI::ImDrawListManager::AddText(GUI::GetWindowDrawList(), textFont, textFontSize * kShortcutFontScale, GUI::ImVec2{ buttonMax.x - kCTAFramePaddingX - shortcutSize.x, buttonMin.y + (buttonMax.y - buttonMin.y - shortcutSize.y) * 0.5F }, iconColor, a_shortcut);
         }
 
         GUI::PopStyleColor(4);
@@ -261,6 +263,14 @@ namespace ParticleLightEditor::Menu::Controls
         GetActionState().start = cursor;
         GUI::GetContentRegionAvail(&available);
         GUI::SetCursorPos(GUI::ImVec2{ cursor.x + (std::max)(0.0F, available.x - a_width), cursor.y });
+    }
+
+    inline void AlignTextToCTAButton()
+    {
+        const auto* style = GUI::GetStyle();
+        GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ style ? style->FramePadding.x : 4.0F, kCTAFramePaddingY });
+        GUI::AlignTextToFramePadding();
+        GUI::PopStyleVar();
     }
 
     inline void FinishActions()
