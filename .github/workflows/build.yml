@@ -90,4 +90,4 @@ jobs:
           }
 
       - name: Build
-        run: cmake --build build/debug --config Debug
+        run: cmake --build build/release --config release
