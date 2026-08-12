@@ -37,6 +37,7 @@ jobs:
           repository: microsoft/vcpkg
           ref: 78b61582c9e093fda56a01ebb654be15a0033897
           path: external/vcpkg
+          fetch-depth: 0
 
       - name: Set up MSVC
         uses: ilammy/msvc-dev-cmd@v1
