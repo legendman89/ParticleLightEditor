@@ -13,10 +13,6 @@ namespace ParticleLightEditor::Trace
         const auto validation = a_entry.runtimeAttachment ? "Equipped Light" : a_candidate.entry.validatedByName ?
             (hasAssociation ? "Node Name + Nearby Light" : "Node Name") :
             (hasAssociation ? (a_candidate.directLightOwner ? "Owned by Light Reference" : "Matched to Nearby Light") : "Matching Base Particle");
-        auto* geometry = a_entry.geometry.get();
-        auto* shader = geometry ? Utility::GetEffectShader(*geometry) : nullptr;
-        auto* material = shader ? shader->GetMaterial() : nullptr;
-        auto* renderer = geometry ? geometry->GetGeometryRuntimeData().rendererData : nullptr;
         logger::trace(
             "Particle light candidate:\n"
             "  Field                       | Value\n"
@@ -42,13 +38,6 @@ namespace ParticleLightEditor::Trace
             "  Color source                | {}\n"
             "  Material color              | ({:.3f}, {:.3f}, {:.3f}, {:.3f})\n"
             "  Effective color             | ({:.3f}, {:.3f}, {:.3f}, {:.3f})\n"
-            "  Geometry                    | {:p}\n"
-            "  Shader                      | {:p}\n"
-            "  Material                    | {:p}\n"
-            "  Renderer                    | {:p}\n"
-            "  Raw vertex data             | {:p}\n"
-            "  Renderer references         | {}\n"
-            "  Runtime NiLight             | {:p}\n"
             "  Runtime node                | {}",
             a_entry.nodeName,
             validation,
@@ -77,13 +66,6 @@ namespace ParticleLightEditor::Trace
             a_entry.defaults.color.green,
             a_entry.defaults.color.blue,
             a_entry.defaults.color.alpha,
-            static_cast<void*>(geometry),
-            static_cast<void*>(shader),
-            static_cast<void*>(material),
-            static_cast<void*>(renderer),
-            renderer ? static_cast<void*>(renderer->rawVertexData) : nullptr,
-            renderer ? renderer->refCount : 0,
-            static_cast<void*>(a_entry.runtimeLight.get()),
             a_entry.runtimeLightNodeName);
     }
 }
