@@ -75,7 +75,7 @@ jobs:
 
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
             Write-Host "Configuring project (attempt $attempt of $maxAttempts)..."
-            cmake --preset debug
+            cmake --preset release
             $configureExitCode = $LASTEXITCODE
 
             if ($configureExitCode -eq 0) {
@@ -90,4 +90,4 @@ jobs:
           }
 
       - name: Build
-        run: cmake --build build/release --config release
+        run: cmake --build build/release --config Release
