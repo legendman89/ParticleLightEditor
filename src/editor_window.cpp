@@ -18,9 +18,9 @@ namespace ParticleLightEditor::Menu
 
         GUI::SetNextItemWidth(420.0F);
         const auto filterLabel = std::format("{}##ParticleLightFilter", Trans::Tr("Scanner.Filter"));
-        GUI::InputText(filterLabel.c_str(), state.lightFilter.data(), state.lightFilter.size());
+        GUI::InputTextWithHint(filterLabel.c_str(), Trans::Tr("Scanner.Filter.Hint").c_str(), state.lightFilter.data(), state.lightFilter.size());
         Controls::Tooltip(Trans::Tr("Scanner.Filter.Tooltip").c_str());
-        GUI::SameLine(0.0F, 12.0F);
+        GUI::SameLine(0.0F, 18.0F);
         const auto editedOnlyLabel = std::format("{}##ParticleLightFilter", Trans::Tr("Scanner.Filter.EditedOnly"));
         GUI::Checkbox(editedOnlyLabel.c_str(), &state.editedLightsOnly);
 

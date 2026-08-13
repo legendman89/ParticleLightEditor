@@ -14,7 +14,7 @@ namespace ParticleLightEditor::Menu
         auto& state = GetState();
         const auto reference = RE::Console::GetSelectedRef();
         if (!reference) {
-            state.consoleStatus = Trans::Tr("Console.NoReference");
+            state.consoleStatus.clear();
             logger::info(
                 "Console selection failed: no reference is selected; editorOpenRequested={}, editorRegistered={}, editorIsOpen={}",
                 a_openEditor,

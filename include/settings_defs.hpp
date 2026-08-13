@@ -2,6 +2,7 @@
 
 #define FOREACH_DRAWING_BOOL_SETTING(SETTING) \
     SETTING(drawLights, true) \
+    SETTING(drawOnlySelectedLight, false) \
     SETTING(drawCenterMarkers, true) \
     SETTING(highlightSelectedLight, true) \
     SETTING(showNameValidated, true) \

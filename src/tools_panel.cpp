@@ -44,7 +44,8 @@ namespace ParticleLightEditor::Menu
     void RenderToolsSections()
     {
         auto& settings = Settings::GetSettings();
-        const auto stats = Scanner::GetSingleton().GetStats();
+        auto& scanner = Scanner::GetSingleton();
+        const auto stats = scanner.GetStats();
         constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
 
         const auto visualizationHeader = std::format("{}##Visualization", Trans::Tr("Tools.Visualization.Header"));
@@ -54,6 +55,19 @@ namespace ParticleLightEditor::Menu
 
             const auto drawLabel = std::format("{}##DrawParticleLights", Trans::Tr("Tools.Visualization.Draw"));
             GUI::Checkbox(drawLabel.c_str(), &settings.drawLights);
+
+            GUI::Spacing();
+
+            const auto selectedOnlyLabel = std::format("{}##DrawOnlySelectedLight", Trans::Tr("Tools.Visualization.DrawSelectedOnly"));
+            const auto hasSelection = scanner.GetSelectedLightIndex() < scanner.GetLightCount();
+            if (!settings.drawLights || !hasSelection) {
+                GUI::BeginDisabled();
+            }
+            GUI::Checkbox(selectedOnlyLabel.c_str(), &settings.drawOnlySelectedLight);
+            if (!settings.drawLights || !hasSelection) {
+                GUI::EndDisabled();
+            }
+            Controls::Tooltip(Trans::Tr("Tools.Visualization.DrawSelectedOnly.Tooltip").c_str());
 
             GUI::Spacing();
 
@@ -114,7 +128,7 @@ namespace ParticleLightEditor::Menu
         GUI::Spacing();
 
         const auto diagnosticsHeader = std::format("{}##Diagnostics", Trans::Tr("Tools.Diagnostics.Header"));
-        if (GUI::CollapsingHeader(diagnosticsHeader.c_str(), defaultOpen)) {
+        if (GUI::CollapsingHeader(diagnosticsHeader.c_str())) {
 
             GUI::Spacing();
 

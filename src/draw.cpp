@@ -176,6 +176,9 @@ namespace ParticleLightEditor::Draw
 
         for (size_t index = 0; index < a_entries.size(); ++index) {
             const auto& entry = a_entries[index];
+            if (a_settings.drawOnlySelectedLight && index != a_selectedIndex) {
+                continue;
+            }
             if ((entry.validatedByName && !a_settings.showNameValidated) || (!entry.validatedByName && !a_settings.showRuntimeValidated)) {
                 continue;
             }
@@ -203,8 +206,9 @@ namespace ParticleLightEditor::Draw
             }
 
             const auto radius = particleRadius * radiusScale;
+            const auto particleColor = Color(*geometry, entry);
             ++a_state.counters.drawnCount;
-            Sphere(movie, canvas, center, radius, Color(*geometry, entry), a_settings.lineThickness, segments);
+            Sphere(movie, canvas, center, radius, particleColor, a_settings.lineThickness, segments);
             if (a_settings.highlightSelectedLight && index == a_selectedIndex) {
                 Sphere(movie, canvas, center, radius + (std::max)(2.0F, radius * 0.01F), selectedColor, a_settings.lineThickness + 0.75F, segments);
             }

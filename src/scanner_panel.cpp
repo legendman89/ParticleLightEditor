@@ -39,7 +39,6 @@ namespace ParticleLightEditor::Menu
     {
         auto& settings = Settings::GetSettings();
         auto& scanner = Scanner::GetSingleton();
-        const auto stats = scanner.GetStats();
         constexpr auto defaultOpen = GUI::ImGuiTreeNodeFlags_DefaultOpen;
 
         const auto selectionHeader = std::format("{}##LightSelection", Trans::Tr("Scanner.Selection.Header"));
@@ -77,11 +76,6 @@ namespace ParticleLightEditor::Menu
             const auto scanningLabel = std::format("{}##PeriodicScanning", Trans::Tr("Scanner.PeriodicScanning"));
             GUI::SliderFloat(scanningLabel.c_str(), &settings.scanInterval, 0.0F, 10.0F, Trans::Tr("Common.Seconds.Format").c_str());
             Controls::Tooltip(Trans::Tr("Scanner.PeriodicScanning.Tooltip").c_str());
-
-            GUI::Spacing();
-            GUI::Spacing();
-
-            GUI::TextUnformatted(Trans::Format("Scanner.Cache", stats.cachedLights, stats.scan.referenceCount, stats.scan.sourceCount).c_str());
         }
 
         GUI::Spacing();
