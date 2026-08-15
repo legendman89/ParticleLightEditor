@@ -49,23 +49,20 @@ namespace ParticleLightEditor::Menu::Controls
 
     inline float CTAButtonWidth(const char* a_label)
     {
-        GUI::ImVec2 size{};
-        GUI::CalcTextSize(&size, a_label, nullptr, false, -1.0F);
+        const auto size = GUI::CalcTextSize(a_label, nullptr, false, -1.0F);
         return size.x + kCTAFramePaddingX * 2.0F;
     }
 
     inline float IconCTAButtonWidth(const char* a_label, unsigned a_icon, float a_iconTextSpacing = 8.0F, const char* a_shortcut = nullptr)
     {
-        GUI::ImVec2 labelSize{};
-        GUI::ImVec2 iconSize{};
-        GUI::ImVec2 shortcutSize{};
-        GUI::CalcTextSize(&labelSize, a_label, nullptr, false, -1.0F);
+        const auto labelSize = GUI::CalcTextSize(a_label, nullptr, false, -1.0F);
         FontAwesome::PushSolid();
         const auto iconText = FontAwesome::UnicodeToUtf8(a_icon);
-        GUI::CalcTextSize(&iconSize, iconText.c_str(), nullptr, false, -1.0F);
+        const auto iconSize = GUI::CalcTextSize(iconText.c_str(), nullptr, false, -1.0F);
         FontAwesome::Pop();
+        GUI::ImVec2 shortcutSize{};
         if (a_shortcut && *a_shortcut) {
-            GUI::CalcTextSize(&shortcutSize, a_shortcut, nullptr, false, -1.0F);
+            shortcutSize = GUI::CalcTextSize(a_shortcut, nullptr, false, -1.0F);
             shortcutSize.x *= kShortcutFontScale;
         }
         return kCTAFramePaddingX * 2.0F + iconSize.x + a_iconTextSpacing + labelSize.x + (shortcutSize.x > 0.0F ? shortcutSize.x + 20.0F : 0.0F);
@@ -95,18 +92,15 @@ namespace ParticleLightEditor::Menu::Controls
             GUI::EndDisabled();
         }
 
-        GUI::ImVec2 buttonMin{};
-        GUI::ImVec2 buttonMax{};
-        GUI::GetItemRectMin(&buttonMin);
-        GUI::GetItemRectMax(&buttonMax);
+        const auto buttonMin = GUI::GetItemRectMin();
+        const auto buttonMax = GUI::GetItemRectMax();
 
-        GUI::ImVec2 labelSize{};
+        const auto labelSize = GUI::CalcTextSize(a_label, nullptr, false, -1.0F);
         GUI::ImVec2 shortcutSize{};
         const auto* textFont = GUI::GetFont();
         const auto textFontSize = GUI::GetFontSize();
-        GUI::CalcTextSize(&labelSize, a_label, nullptr, false, -1.0F);
         if (hasShortcut) {
-            GUI::CalcTextSize(&shortcutSize, a_shortcut, nullptr, false, -1.0F);
+            shortcutSize = GUI::CalcTextSize(a_shortcut, nullptr, false, -1.0F);
             shortcutSize.x *= kShortcutFontScale;
             shortcutSize.y *= kShortcutFontScale;
         }
@@ -115,8 +109,7 @@ namespace ParticleLightEditor::Menu::Controls
         const auto* iconFont = GUI::GetFont();
         const auto iconFontSize = GUI::GetFontSize();
         const auto iconColor = GUI::GetColorU32(a_enabled ? Color::kCTAOnText : Color::kCTAOffText);
-        GUI::ImVec2 iconSize{};
-        GUI::CalcTextSize(&iconSize, iconText.c_str(), nullptr, false, -1.0F);
+        const auto iconSize = GUI::CalcTextSize(iconText.c_str(), nullptr, false, -1.0F);
         FontAwesome::Pop();
 
         const auto contentWidth = iconSize.x + a_iconTextSpacing + labelSize.x;
@@ -154,15 +147,12 @@ namespace ParticleLightEditor::Menu::Controls
         FontAwesome::PushSolid();
         const auto* iconFont = GUI::GetFont();
         const auto normalIconSize = GUI::GetFontSize();
-        GUI::ImVec2 iconBounds{};
-        GUI::CalcTextSize(&iconBounds, iconText.c_str(), nullptr, false, -1.0F);
+        const auto iconBounds = GUI::CalcTextSize(iconText.c_str(), nullptr, false, -1.0F);
         FontAwesome::Pop();
         const auto clicked = GUI::Button(label.c_str(), GUI::ImVec2{ 38.0F, GUI::GetFrameHeight() });
         const auto hovered = a_enabled && GUI::IsItemHovered();
-        GUI::ImVec2 buttonMin{};
-        GUI::ImVec2 buttonMax{};
-        GUI::GetItemRectMin(&buttonMin);
-        GUI::GetItemRectMax(&buttonMax);
+        const auto buttonMin = GUI::GetItemRectMin();
+        const auto buttonMax = GUI::GetItemRectMax();
         constexpr auto iconScale = 1.35F;
         const auto iconFontSize = normalIconSize * iconScale;
         const GUI::ImVec2 scaledBounds{ iconBounds.x * iconScale, iconBounds.y * iconScale };
@@ -179,19 +169,15 @@ namespace ParticleLightEditor::Menu::Controls
 
     inline void WindowTitleIcon(const char* a_title, unsigned a_icon)
     {
-        GUI::ImVec2 windowPosition{};
-        GUI::ImVec2 windowSize{};
-        GUI::ImVec2 titleSize{};
-        GUI::ImVec2 iconSize{};
-        GUI::GetWindowPos(&windowPosition);
-        GUI::GetWindowSize(&windowSize);
-        GUI::CalcTextSize(&titleSize, a_title, nullptr, false, -1.0F);
+        const auto windowPosition = GUI::GetWindowPos();
+        const auto windowSize = GUI::GetWindowSize();
+        const auto titleSize = GUI::CalcTextSize(a_title, nullptr, false, -1.0F);
 
         const auto iconText = FontAwesome::UnicodeToUtf8(a_icon);
         FontAwesome::PushRegular();
         const auto* iconFont = GUI::GetFont();
         const auto iconFontSize = GUI::GetFontSize();
-        GUI::CalcTextSize(&iconSize, iconText.c_str(), nullptr, false, -1.0F);
+        const auto iconSize = GUI::CalcTextSize(iconText.c_str(), nullptr, false, -1.0F);
         FontAwesome::Pop();
 
         const auto* style = GUI::GetStyle();
@@ -203,9 +189,8 @@ namespace ParticleLightEditor::Menu::Controls
     inline float EditActionButtonWidth(const char* a_label)
     {
         const auto label = "        " + std::string(a_label);
-        GUI::ImVec2 size{};
-        GUI::CalcTextSize(&size, label.c_str(), nullptr, false, -1.0F);
-        return (std::max)(kEditActionButtonWidth, size.x + 28.0F);
+        const auto size = GUI::CalcTextSize(label.c_str(), nullptr, false, -1.0F);
+        return std::max(kEditActionButtonWidth, size.x + 28.0F);
     }
 
     inline bool EditActionButton(const char* a_label, bool a_enabled)
@@ -229,16 +214,12 @@ namespace ParticleLightEditor::Menu::Controls
             ("        " + std::string(a_label) + "##EditAction").c_str(),
             GUI::ImVec2{ width, kEditActionButtonHeight });
 
-        GUI::ImVec2 buttonMin{};
-        GUI::ImVec2 buttonMax{};
-        GUI::ImVec2 nextItemPosition{};
-        GUI::GetItemRectMin(&buttonMin);
-        GUI::GetItemRectMax(&buttonMax);
-        GUI::GetCursorScreenPos(&nextItemPosition);
+        const auto buttonMin = GUI::GetItemRectMin();
+        const auto buttonMax = GUI::GetItemRectMax();
+        const auto nextItemPosition = GUI::GetCursorScreenPos();
 
         FontAwesome::PushRegular();
-        GUI::ImVec2 iconSize{};
-        GUI::CalcTextSize(&iconSize, editText.c_str(), nullptr, false, -1.0F);
+        const auto iconSize = GUI::CalcTextSize(editText.c_str(), nullptr, false, -1.0F);
         GUI::SetCursorScreenPos(GUI::ImVec2{
             buttonMin.x + 13.0F,
             buttonMin.y + ((buttonMax.y - buttonMin.y - iconSize.y) * 0.5F) });
@@ -257,12 +238,10 @@ namespace ParticleLightEditor::Menu::Controls
 
     inline void AlignActions(float a_width)
     {
-        GUI::ImVec2 cursor{};
-        GUI::ImVec2 available{};
-        GUI::GetCursorPos(&cursor);
+        const auto cursor = GUI::GetCursorPos();
         GetActionState().start = cursor;
-        GUI::GetContentRegionAvail(&available);
-        GUI::SetCursorPos(GUI::ImVec2{ cursor.x + (std::max)(0.0F, available.x - a_width), cursor.y });
+        const auto available = GUI::GetContentRegionAvail();
+        GUI::SetCursorPos(GUI::ImVec2{ cursor.x + std::max(0.0F, available.x - a_width), cursor.y });
     }
 
     inline void AlignTextToCTAButton()
@@ -275,8 +254,7 @@ namespace ParticleLightEditor::Menu::Controls
 
     inline void FinishActions()
     {
-        GUI::ImVec2 cursor{};
-        GUI::GetCursorPos(&cursor);
+        const auto cursor = GUI::GetCursorPos();
         GUI::SetCursorPos(GUI::ImVec2{ GetActionState().start.x, cursor.y });
         GUI::Spacing();
         GUI::Spacing();

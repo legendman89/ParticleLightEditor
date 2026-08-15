@@ -102,8 +102,7 @@ namespace ParticleLightEditor::Menu
     {
         auto& scanner = Scanner::GetSingleton();
         GUI::TableNextColumn();
-        GUI::ImVec2 cursor{};
-        GUI::GetCursorPos(&cursor);
+        const auto cursor = GUI::GetCursorPos();
         GUI::SetCursorPos(GUI::ImVec2{ cursor.x + a_leftSpacing, cursor.y });
         if (Controls::IconOnlyButton(a_id, scanner.IsSelectedPropertyEdited(a_property), Icons::kReset)) {
             const auto selectedOnly = scanner.GetEditScope() == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled;

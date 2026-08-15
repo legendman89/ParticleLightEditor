@@ -122,7 +122,7 @@ namespace ParticleLightEditor::Draw
             color.blue *= shader->emittanceColor->blue;
         }
 
-        const auto brightest = (std::max)({ color.red, color.green, color.blue });
+        const auto brightest = std::max({ color.red, color.green, color.blue });
         if (!std::isfinite(brightest) || brightest <= 0.01F) {
             return kDefaultDrawColor;
         }
@@ -210,7 +210,7 @@ namespace ParticleLightEditor::Draw
             ++a_state.counters.drawnCount;
             Sphere(movie, canvas, center, radius, particleColor, a_settings.lineThickness, segments);
             if (a_settings.highlightSelectedLight && index == a_selectedIndex) {
-                Sphere(movie, canvas, center, radius + (std::max)(2.0F, radius * 0.01F), selectedColor, a_settings.lineThickness + 0.75F, segments);
+                Sphere(movie, canvas, center, radius + std::max(2.0F, radius * 0.01F), selectedColor, a_settings.lineThickness + 0.75F, segments);
             }
             if (a_settings.drawCenterMarkers) {
                 Sphere(movie, canvas, center, a_settings.centerMarkerRadius, centerColor, a_settings.lineThickness, segments);

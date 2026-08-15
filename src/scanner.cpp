@@ -1,5 +1,6 @@
 #include "scanner.hpp"
 
+#include "animation.hpp"
 #include "category.hpp"
 #include "draw.hpp"
 #include "logger.hpp"
@@ -11,6 +12,12 @@ namespace ParticleLightEditor
 {
     void Scanner::Reset()
     {
+        for (auto& entry : entries) {
+            const auto* edit = FindEdit(entry);
+            if (edit && (edit->animationChanged || entry.animationApplied)) {
+                Animation::RestoreDefault(entry, *edit);
+            }
+        }
         Vertices::Manager::GetSingleton().Clear();
         entries.clear();
         candidates.clear();
@@ -20,7 +27,8 @@ namespace ParticleLightEditor
         categoryOverrides.clear();
         editScope = EditScope::kSelectedLight;
         targetCategory = ParticleCategory::kUnclassified;
-        selectedIndex = (std::numeric_limits<size_t>::max)();
+        selectedIndex = std::numeric_limits<size_t>::max();
+        selectionCleared = false;
         cell = nullptr;
         rescanRequested = false;
         scanElapsed = 0.0F;
@@ -96,7 +104,7 @@ namespace ParticleLightEditor
         }
 
         if (rescanRequested && rescanDelay > 0.0F && std::isfinite(a_delta) && a_delta > 0.0F) {
-            rescanDelay = (std::max)(0.0F, rescanDelay - a_delta);
+            rescanDelay = std::max(0.0F, rescanDelay - a_delta);
         }
 
         if (settings.scanInterval > 0.0F && std::isfinite(a_delta) && a_delta > 0.0F) {
@@ -113,10 +121,15 @@ namespace ParticleLightEditor
         // A cell's scene graph is cached once by default. Walking around inside the
         // same cell only performs cheap distance checks unless the user requests a
         // rescan or explicitly enables the periodic interval.
+        if (currentCell != cell) {
+            selectedIndex = std::numeric_limits<size_t>::max();
+            selectionCleared = false;
+        }
         if (currentCell != cell || (rescanRequested && rescanDelay <= 0.0F)) {
             Refresh(currentCell, a_player);
         }
 
+        Animation::Advance(a_delta);
         ApplyParticleLightEdits();
         UpdateEditorList(a_player);
         Draw::Lights(entries, selectedIndex, a_player, settings, drawState);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "animation_defs.hpp"
 #include "edit_defs.hpp"
 
 #include <cstring>
@@ -10,6 +11,11 @@
 #define EDIT_CHANGED_CHECK(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) a_edit.CHANGED ||
 #define EDIT_CHANGED_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: return a_edit.CHANGED;
 #define EDIT_CLEAR_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: a_edit.CHANGED = false; return;
+#define ANIMATION_PROFILE_ENUM(PROFILE, LABEL, DURATION) PROFILE,
+#define ANIMATION_COLOR_DEFINE(NAME, RED, GREEN, BLUE, ALPHA) RE::NiColorA NAME{ RED, GREEN, BLUE, ALPHA };
+#define ANIMATION_FLOAT_DEFINE(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) float NAME{ DEFAULT_VALUE };
+#define ANIMATION_ENUM_DEFINE(TYPE, NAME, DEFAULT_VALUE) TYPE NAME{ DEFAULT_VALUE };
+#define ANIMATION_BOOL_DEFINE(NAME, DEFAULT_VALUE) bool NAME{ DEFAULT_VALUE };
 
 namespace ParticleLightEditor
 {
@@ -30,6 +36,35 @@ namespace ParticleLightEditor
         kCategoryCell,
         kCategoryGlobal,
         kTotal
+    };
+
+    enum class AnimationProfile : uint8_t
+    {
+        FOREACH_ANIMATION_PROFILE(ANIMATION_PROFILE_ENUM)
+        kTotal
+    };
+
+    struct AnimationPoint
+    {
+        float time{ 0.0F };
+        RE::NiPoint3 color;
+    };
+
+    struct AnimationDefault
+    {
+        std::vector<AnimationPoint> points;
+        float frequency{ 1.0F };
+        float duration{ 1.0F };
+        bool controllerActive{ false };
+        bool available{ false };
+    };
+
+    struct AnimationEdit
+    {
+        FOREACH_ANIMATION_COLOR_PROPERTY(ANIMATION_COLOR_DEFINE)
+        FOREACH_ANIMATION_FLOAT_PROPERTY(ANIMATION_FLOAT_DEFINE)
+        FOREACH_ANIMATION_ENUM_PROPERTY(ANIMATION_ENUM_DEFINE)
+        FOREACH_ANIMATION_BOOL_PROPERTY(ANIMATION_BOOL_DEFINE)
     };
 
     enum class EditProperty : uint8_t
@@ -61,9 +96,11 @@ namespace ParticleLightEditor
         float intensity{ 1.0F };
         float radiusScale{ 1.0F };
         FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_DEFINE)
+        AnimationEdit animation;
+        bool animationChanged{ false };
     };
 
-    inline bool HasChanges(const CategoryRule& a_edit) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CHECK) false; }
+    inline bool HasChanges(const CategoryRule& a_edit) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CHECK) a_edit.animationChanged; }
 
     using CategoryRuleMap = std::unordered_map<CategoryRuleKey, CategoryRule, CategoryRuleKeyHash>;
     using CategoryOverrideMap = std::unordered_map<std::string, ParticleCategory>;
@@ -141,6 +178,10 @@ namespace ParticleLightEditor
         float defaultRadius{ 0.0F };
         bool enabled{ true };
         ParticleCategory category{ ParticleCategory::kUnclassified };
+        AnimationEdit animation;
+        bool animationEdited{ false };
+        bool nativeAnimated{ false };
+        bool usesVertexColors{ false };
     };
 
     struct EditKey
@@ -172,6 +213,7 @@ namespace ParticleLightEditor
         RE::NiColorA vertexColor{ 1.0F, 1.0F, 1.0F, 1.0F };
         bool usesVertexColors{ false };
         bool enabled{ true };
+        AnimationDefault animation;
     };
 
     struct Edit
@@ -184,10 +226,12 @@ namespace ParticleLightEditor
         float radius{ 0.0F };
         bool enabled{ true };
         FOREACH_EDIT_PROPERTY(EDIT_CHANGED_DEFINE)
+        AnimationEdit animation;
+        bool animationChanged{ false };
         bool initialized{ false };
     };
 
-    inline bool HasChanges(const Edit& a_edit) { return FOREACH_EDIT_PROPERTY(EDIT_CHANGED_CHECK) false; }
+    inline bool HasChanges(const Edit& a_edit) { return FOREACH_EDIT_PROPERTY(EDIT_CHANGED_CHECK) a_edit.animationChanged; }
 
     inline bool IsPropertyChanged(const Edit& a_edit, EditProperty a_property)
     {
@@ -251,6 +295,9 @@ namespace ParticleLightEditor
         RE::NiColorA currentColor{ 1.0F, 1.0F, 1.0F, 1.0F };
         ParticleCategory category{ ParticleCategory::kUnclassified };
         RE::BSEffectShaderMaterial* editableMaterial{ nullptr };
+        RE::NiPointer<RE::NiTimeController> nativeColorController;
+        bool animationApplied{ false };
+        bool animationRunning{ false };
         EditKey editKey;
     };
 

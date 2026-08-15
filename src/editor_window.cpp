@@ -1,3 +1,4 @@
+#include "animation_ui.hpp"
 #include "color.hpp"
 #include "editor_window.hpp"
 #include "logger.hpp"
@@ -35,12 +36,11 @@ namespace ParticleLightEditor::Menu
         constexpr auto spacing = 8.0F;
         const auto& editLabel = Trans::Tr("Scanner.EditSelected");
         const auto editWidth = Controls::EditActionButtonWidth(editLabel.c_str());
-        GUI::ImVec2 available{};
-        GUI::GetContentRegionAvail(&available);
-        GUI::SetNextItemWidth((std::max)(160.0F, available.x - editWidth - spacing));
+        const auto available = GUI::GetContentRegionAvail();
+        GUI::SetNextItemWidth(std::max(160.0F, available.x - editWidth - spacing));
         const auto* style = GUI::GetStyle();
         const auto comboPaddingX = style ? style->FramePadding.x : 4.0F;
-        const auto comboPaddingY = (std::max)(0.0F, (Controls::kEditActionButtonHeight - GUI::GetFontSize()) * 0.5F);
+        const auto comboPaddingY = std::max(0.0F, (Controls::kEditActionButtonHeight - GUI::GetFontSize()) * 0.5F);
         GUI::PushStyleVar(GUI::ImGuiStyleVar_FramePadding, GUI::ImVec2{ comboPaddingX, comboPaddingY });
         if (GUI::BeginCombo("##SelectedParticleLight", selectedLabel.c_str())) {
             for (size_t index = 0; index < scanner.GetLightCount(); ++index) {
@@ -186,6 +186,11 @@ namespace ParticleLightEditor::Menu
                 GUI::EndTable();
             }
         }
+
+        GUI::Spacing();
+        GUI::Spacing();
+
+        AnimationUI::Render(a_editor);
 
         GUI::Spacing();
         GUI::Spacing();

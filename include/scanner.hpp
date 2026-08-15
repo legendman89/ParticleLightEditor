@@ -44,6 +44,12 @@ namespace ParticleLightEditor
 
         bool SetSelectedEnabled(bool a_enabled);
 
+        bool SetSelectedAnimation(const AnimationEdit& a_animation);
+
+        bool ResetSelectedAnimation();
+
+        bool IsSelectedAnimationEdited() const;
+
         bool ResetSelectedLight();
 
         bool ResetSelectedProperty(EditProperty a_property);
@@ -141,7 +147,8 @@ namespace ParticleLightEditor
         CategoryOverrideMap categoryOverrides;
         EditScope editScope{ EditScope::kSelectedLight };
         ParticleCategory targetCategory{ ParticleCategory::kUnclassified };
-        size_t selectedIndex{ (std::numeric_limits<size_t>::max)() };
+        size_t selectedIndex{ std::numeric_limits<size_t>::max() };
+        bool selectionCleared{ false };
         RE::TESObjectCELL* cell{ nullptr };
         bool rescanRequested{ false };
         float scanElapsed{ 0.0F };

@@ -106,8 +106,7 @@ namespace ParticleLightEditor::Menu
     void __stdcall RenderScanner()
     {
         RenderScannerActions();
-        GUI::ImVec2 available{};
-        GUI::GetContentRegionAvail(&available);
+        const auto available = GUI::GetContentRegionAvail();
         if (GUI::BeginChild("ScannerScrollRegion", available, GUI::ImGuiChildFlags_None, 0)) {
             RenderScannerSections();
         }

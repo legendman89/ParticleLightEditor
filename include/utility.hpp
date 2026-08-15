@@ -90,6 +90,11 @@ namespace ParticleLightEditor::Utility
         return a_left.red == a_right.red && a_left.green == a_right.green && a_left.blue == a_right.blue && a_left.alpha == a_right.alpha;
     }
 
+    inline bool IsFiniteColor(const RE::NiColorA& a_color)
+    {
+        return std::isfinite(a_color.red) && std::isfinite(a_color.green) && std::isfinite(a_color.blue) && std::isfinite(a_color.alpha);
+    }
+
     inline bool PointsEqual(const RE::NiPoint3& a_left, const RE::NiPoint3& a_right)
     {
         return a_left.x == a_right.x && a_left.y == a_right.y && a_left.z == a_right.z;

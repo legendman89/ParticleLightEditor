@@ -1,5 +1,6 @@
 #pragma once
 
+#include "animation.hpp"
 #include "scanner.hpp"
 #include "settings_defs.hpp"
 #include "types.hpp"
@@ -129,9 +130,11 @@ namespace ParticleLightEditor::Settings
         return FOREACH_DETECTION_BOOL_SETTING(SETTING_EQUAL) FOREACH_DETECTION_FLOAT_SETTING(SETTING_EQUAL) FOREACH_DETECTION_INT_SETTING(SETTING_EQUAL) true; 
     }
 
-    inline bool EditEqual(const Edit& a_left, const Edit& a_right) { return FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL) true; }
+    inline bool EditEqual(const Edit& a_left, const Edit& a_right) { return FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL)
+        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || Animation::Equal(a_left.animation, a_right.animation)); }
 
-    inline bool CategoryRuleEqual(const CategoryRule& a_left, const CategoryRule& a_right) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL) true; }
+    inline bool CategoryRuleEqual(const CategoryRule& a_left, const CategoryRule& a_right) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL)
+        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || Animation::Equal(a_left.animation, a_right.animation)); }
 
     inline bool AreEditsDirty()
     {

@@ -1,5 +1,7 @@
 #include "scanner.hpp"
 
+#include "animation.hpp"
+
 #include "category.hpp"
 #include "detector.hpp"
 #include "logger.hpp"
@@ -106,6 +108,12 @@ namespace ParticleLightEditor
         const auto previousCount = entries.size();
         const auto previousCell = cell;
 
+        for (auto& entry : entries) {
+            const auto* edit = FindEdit(entry);
+            if (edit && (edit->animationChanged || entry.animationApplied)) {
+                Animation::RestoreDefault(entry, *edit);
+            }
+        }
         entries.clear();
         candidates.clear();
         editorIndices.clear();
@@ -343,6 +351,7 @@ namespace ParticleLightEditor
                 }
                 entry.currentColor = entry.defaults.color;
             }
+            Animation::CaptureDefault(entry);
 
             candidates.push_back({
                 std::move(entry),
@@ -390,10 +399,10 @@ namespace ParticleLightEditor
         }
 
         const auto& settings = Settings::GetSettings();
-        const auto associationRange = (std::max)(1.0F, settings.associationRange);
+        const auto associationRange = std::max(1.0F, settings.associationRange);
         const auto associationRangeSquared = associationRange * associationRange;
-        const auto radiusWeight = (std::max)(0.0F, settings.radiusMatchWeight);
-        const auto noMatch = (std::numeric_limits<size_t>::max)();
+        const auto radiusWeight = std::max(0.0F, settings.radiusMatchWeight);
+        const auto noMatch = std::numeric_limits<size_t>::max();
         std::vector<size_t> associatedSources(candidates.size(), noMatch);
         std::vector<bool> candidateClaimed(candidates.size(), false);
 
@@ -532,7 +541,7 @@ namespace ParticleLightEditor
                 }
 
                 const auto distance = std::sqrt(squaredDistance);
-                const auto relativeRadiusDifference = std::abs(candidate.radius - source.radius) / (std::max)(1.0F, source.radius);
+                const auto relativeRadiusDifference = std::abs(candidate.radius - source.radius) / std::max(1.0F, source.radius);
                 edges.push_back({ candidateIndex, sourceIndex, distance, distance + relativeRadiusDifference * a_radiusWeight });
             }
         }

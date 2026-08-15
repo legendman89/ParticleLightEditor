@@ -1,5 +1,6 @@
 #include "scanner.hpp"
 
+#include "animation.hpp"
 #include "category.hpp"
 #include "editor.hpp"
 #include "reference.hpp"
@@ -8,6 +9,9 @@
 #include "translate.hpp"
 #include "utility.hpp"
 #include "vertices.hpp"
+
+#define ANIMATION_FLOAT_CLAMP(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) animation.NAME = std::clamp(animation.NAME, MINIMUM, MAXIMUM);
+#define ANIMATION_COLOR_CLAMP(NAME, RED, GREEN, BLUE, ALPHA) animation.NAME = { std::clamp(animation.NAME.red, 0.0F, 10.0F), std::clamp(animation.NAME.green, 0.0F, 10.0F), std::clamp(animation.NAME.blue, 0.0F, 10.0F), std::clamp(animation.NAME.alpha, 0.0F, 1.0F) };
 
 namespace ParticleLightEditor
 {
@@ -178,7 +182,7 @@ namespace ParticleLightEditor
     size_t Scanner::GetSelectedLightIndex() const
     {
         const auto selected = std::ranges::find(editorIndices, selectedIndex);
-        return selected != editorIndices.end() ? static_cast<size_t>(std::distance(editorIndices.begin(), selected)) : (std::numeric_limits<size_t>::max)();
+        return selected != editorIndices.end() ? static_cast<size_t>(std::distance(editorIndices.begin(), selected)) : std::numeric_limits<size_t>::max();
     }
 
     std::string Scanner::GetLightLabel(size_t a_index) const
@@ -224,6 +228,7 @@ namespace ParticleLightEditor
 
         selectedIndex = editorIndices[a_index];
         targetCategory = entries[selectedIndex].category;
+        selectionCleared = false;
         return true;
     }
 
@@ -234,11 +239,11 @@ namespace ParticleLightEditor
             return 0;
         }
 
-        size_t firstMatch = (std::numeric_limits<size_t>::max)();
+        size_t firstMatch = std::numeric_limits<size_t>::max();
         size_t matchCount = 0;
         for (const auto index : editorIndices) {
             if (entries[index].ownerFormID == formID) {
-                if (firstMatch == (std::numeric_limits<size_t>::max)()) {
+                if (firstMatch == std::numeric_limits<size_t>::max()) {
                     firstMatch = index;
                 }
                 ++matchCount;
@@ -248,7 +253,7 @@ namespace ParticleLightEditor
         if (matchCount == 0) {
             for (const auto index : editorIndices) {
                 if (entries[index].associatedLightRefID == formID) {
-                    if (firstMatch == (std::numeric_limits<size_t>::max)()) {
+                    if (firstMatch == std::numeric_limits<size_t>::max()) {
                         firstMatch = index;
                     }
                     ++matchCount;
@@ -257,13 +262,16 @@ namespace ParticleLightEditor
         }
 
         if (matchCount == 0) {
-            selectedIndex = (std::numeric_limits<size_t>::max)();
+            selectedIndex = std::numeric_limits<size_t>::max();
+            targetCategory = ParticleCategory::kUnclassified;
+            selectionCleared = true;
             logger::info("Console-selected reference {:08X} has no particle lights inside the current detection range", formID);
             return 0;
         }
 
         selectedIndex = firstMatch;
         targetCategory = entries[selectedIndex].category;
+        selectionCleared = false;
         logger::info("Selected particle light 1 of {} for console reference {:08X}", matchCount, formID);
         return matchCount;
     }
@@ -290,6 +298,9 @@ namespace ParticleLightEditor
             if (!edit.enabledChanged) {
                 edit.enabled = a_entry.defaults.enabled;
             }
+            if (!edit.animationChanged) {
+                edit.animation = Animation::MakeDefault(a_entry.defaults, a_entry.category);
+            }
             edit.initialized = true;
         }
         else {
@@ -298,6 +309,7 @@ namespace ParticleLightEditor
 
         auto effectiveEdit = GetEffectiveEdit(a_entry);
         Editor::Apply(a_entry, effectiveEdit);
+        Animation::Apply(a_entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(a_entry, edit);
     }
 
@@ -307,6 +319,7 @@ namespace ParticleLightEditor
             if (FindEdit(entry)) {
                 auto effectiveEdit = GetEffectiveEdit(entry);
                 Editor::Apply(entry, effectiveEdit);
+                Animation::Apply(entry, effectiveEdit);
             }
         }
     }
@@ -330,6 +343,10 @@ namespace ParticleLightEditor
         if (rule.radiusChanged && std::isfinite(rule.radiusScale) && rule.radiusScale > 0.0F) {
             a_edit.radius = a_edit.defaults.radius * rule.radiusScale;
             a_edit.radiusChanged = true;
+        }
+        if (rule.animationChanged) {
+            a_edit.animation = rule.animation;
+            a_edit.animationChanged = true;
         }
     }
 
@@ -357,11 +374,8 @@ namespace ParticleLightEditor
         auto* geometry = entry ? entry->geometry.get() : nullptr;
         const auto* baseEdit = entry ? FindEdit(*entry) : nullptr;
         const auto* appearanceEntry = GetScopeRepresentative();
-        auto* appearanceGeometry = appearanceEntry ? appearanceEntry->geometry.get() : nullptr;
-        auto* appearanceShader = appearanceGeometry ? Utility::GetEffectShader(*appearanceGeometry) : nullptr;
-        auto* appearanceMaterial = appearanceShader ? appearanceShader->GetMaterial() : nullptr;
         const auto* appearanceBaseEdit = appearanceEntry ? FindEdit(*appearanceEntry) : nullptr;
-        if (!entry || !geometry || !baseEdit || !appearanceEntry || !appearanceGeometry || !appearanceMaterial || !appearanceBaseEdit) {
+        if (!entry || !geometry || !baseEdit || !appearanceEntry || !appearanceBaseEdit) {
             return false;
         }
         const auto edit = GetEffectiveEdit(*appearanceEntry);
@@ -376,11 +390,15 @@ namespace ParticleLightEditor
         a_state.associatedLightRefID = entry->associatedLightRefID;
         a_state.color = edit.color;
         a_state.localPosition = baseEdit->positionChanged ? baseEdit->localPosition : geometry->local.translate;
-        a_state.intensity = edit.intensityChanged ? edit.intensity : appearanceMaterial->baseColorScale;
+        a_state.intensity = edit.intensity;
         a_state.radius = edit.radiusChanged ? edit.radius : edit.defaults.radius;
         a_state.defaultRadius = edit.defaults.radius;
         a_state.enabled = baseEdit->enabledChanged ? baseEdit->enabled : baseEdit->defaults.enabled;
         a_state.category = entry->category;
+        a_state.animation = edit.animation;
+        a_state.animationEdited = edit.animationChanged;
+        a_state.nativeAnimated = edit.defaults.animation.available;
+        a_state.usesVertexColors = edit.defaults.usesVertexColors;
         return std::isfinite(a_state.radius) && a_state.radius > 0.0F;
     }
 
@@ -388,7 +406,7 @@ namespace ParticleLightEditor
     {
         auto* entry = GetSelectedEntry();
         auto* edit = entry ? FindEdit(*entry) : nullptr;
-        if (!entry || !edit || !std::isfinite(a_color.red) || !std::isfinite(a_color.green) || !std::isfinite(a_color.blue) || !std::isfinite(a_color.alpha)) {
+        if (!entry || !edit || !Utility::IsFiniteColor(a_color)) {
             return false;
         }
 
@@ -510,6 +528,97 @@ namespace ParticleLightEditor
         return applied;
     }
 
+    bool Scanner::SetSelectedAnimation(const AnimationEdit& a_animation)
+    {
+        auto* entry = GetSelectedEntry();
+        auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!entry || !edit || !Animation::IsFinite(a_animation)) {
+            return false;
+        }
+
+        auto animation = a_animation;
+        FOREACH_ANIMATION_FLOAT_PROPERTY(ANIMATION_FLOAT_CLAMP)
+        animation.maximumBrightness = std::max(animation.minimumBrightness, animation.maximumBrightness);
+        FOREACH_ANIMATION_COLOR_PROPERTY(ANIMATION_COLOR_CLAMP)
+        if (animation.profile == AnimationProfile::kOriginal && !edit->defaults.animation.available) {
+            animation.profile = Animation::SuggestedProfile(entry->category);
+        }
+
+        if (editScope != EditScope::kSelectedLight) {
+            if (targetCategory == ParticleCategory::kUnclassified) {
+                return false;
+            }
+            auto& rule = categoryRules[GetSelectedCategoryRuleKey()];
+            rule.animation = animation;
+            rule.animationChanged = true;
+            ApplyParticleLightEdits();
+            return true;
+        }
+
+        edit->animation = animation;
+        edit->animationChanged = true;
+        auto effectiveEdit = GetEffectiveEdit(*entry);
+        const auto applied = Editor::Apply(*entry, effectiveEdit) && Animation::Apply(*entry, effectiveEdit);
+        ReferenceManager::GetSingleton().Capture(*entry, *edit);
+        return applied;
+    }
+
+    bool Scanner::ResetSelectedAnimation()
+    {
+        auto* entry = GetSelectedEntry();
+        auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!entry || !edit) {
+            return false;
+        }
+
+        if (editScope == EditScope::kSelectedLight) {
+            if (!edit->animationChanged) {
+                return false;
+            }
+            Animation::Restore(*entry, *edit);
+            edit->animationChanged = false;
+            edit->animation = Animation::MakeDefault(edit->defaults, entry->category);
+            auto effectiveEdit = GetEffectiveEdit(*entry);
+            const auto applied = Editor::Apply(*entry, effectiveEdit) && Animation::Apply(*entry, effectiveEdit);
+            ReferenceManager::GetSingleton().Capture(*entry, *edit);
+            return applied;
+        }
+
+        const auto key = GetSelectedCategoryRuleKey();
+        const auto found = categoryRules.find(key);
+        if (found == categoryRules.end() || !found->second.animationChanged) {
+            return false;
+        }
+        for (auto& current : entries) {
+            if (MatchesSelectedScope(current)) {
+                const auto* currentEdit = FindEdit(current);
+                if (currentEdit) {
+                    Animation::Restore(current, *currentEdit);
+                }
+            }
+        }
+        found->second.animationChanged = false;
+        if (!HasChanges(found->second)) {
+            categoryRules.erase(found);
+        }
+        ApplyParticleLightEdits();
+        return true;
+    }
+
+    bool Scanner::IsSelectedAnimationEdited() const
+    {
+        const auto* entry = GetSelectedEntry();
+        const auto* edit = entry ? FindEdit(*entry) : nullptr;
+        if (!edit) {
+            return false;
+        }
+        if (editScope == EditScope::kSelectedLight) {
+            return edit->animationChanged;
+        }
+        const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
+        return found != categoryRules.end() && found->second.animationChanged;
+    }
+
     bool Scanner::ResetSelectedLight()
     {
         auto* entry = GetSelectedEntry();
@@ -522,6 +631,7 @@ namespace ParticleLightEditor
         if (!Editor::Restore(*entry, *edit)) {
             return false;
         }
+        Animation::RestoreDefault(*entry, *edit);
         ReferenceManager::GetSingleton().Remove(*entry);
         edits.erase(entry->editKey);
         SetParticleLightEdit(*entry);
@@ -663,7 +773,11 @@ namespace ParticleLightEditor
     bool Scanner::RestoreEntryRuntime(Entry& a_entry)
     {
         const auto* edit = FindEdit(a_entry);
-        return edit && Editor::Restore(a_entry, *edit);
+        if (!edit || !Editor::Restore(a_entry, *edit)) {
+            return false;
+        }
+        Animation::RestoreDefault(a_entry, *edit);
+        return true;
     }
 
     bool Scanner::SetSelectedCategory(ParticleCategory a_category)
@@ -730,12 +844,12 @@ namespace ParticleLightEditor
     {
         editorIndices.clear();
         if (!a_player) {
-            selectedIndex = (std::numeric_limits<size_t>::max)();
+            selectedIndex = std::numeric_limits<size_t>::max();
             return;
         }
 
         const auto& settings = Settings::GetSettings();
-        const auto range = (std::max)(0.0F, settings.drawRange);
+        const auto range = std::max(0.0F, settings.drawRange);
         const auto rangeSquared = range * range;
         const auto playerPosition = a_player->GetPosition();
         editorIndices.reserve(entries.size());
@@ -766,7 +880,7 @@ namespace ParticleLightEditor
         }
 
         if (std::ranges::find(editorIndices, selectedIndex) == editorIndices.end()) {
-            selectedIndex = editorIndices.empty() ? (std::numeric_limits<size_t>::max)() : editorIndices.front();
+            selectedIndex = selectionCleared || editorIndices.empty() ? std::numeric_limits<size_t>::max() : editorIndices.front();
             targetCategory = selectedIndex < entries.size() ? entries[selectedIndex].category : ParticleCategory::kUnclassified;
         }
     }

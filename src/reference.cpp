@@ -154,7 +154,7 @@ namespace ParticleLightEditor
         const std::unordered_set<RE::BSGeometry*>& a_claimed) const
     {
         RE::BSGeometry* closest = nullptr;
-        auto closestScore = (std::numeric_limits<float>::max)();
+        auto closestScore = std::numeric_limits<float>::max();
         for (auto* geometry : a_geometries) {
             if (!geometry || a_claimed.contains(geometry)) {
                 continue;

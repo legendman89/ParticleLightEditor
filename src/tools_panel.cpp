@@ -205,8 +205,7 @@ namespace ParticleLightEditor::Menu
     void __stdcall RenderTools()
     {
         RenderToolsActions();
-        GUI::ImVec2 available{};
-        GUI::GetContentRegionAvail(&available);
+        const auto available = GUI::GetContentRegionAvail();
         if (GUI::BeginChild("ToolsScrollRegion", available, GUI::ImGuiChildFlags_None, 0)) {
             RenderToolsSections();
         }

@@ -22,6 +22,48 @@ namespace ParticleLightEditor::Settings
 #define SETTING_DEFAULT(NAME, DEFAULT_VALUE) a_settings.NAME = DEFAULT_VALUE;
 #define COLOR_SETTING_DEFAULT(NAME, RED, GREEN, BLUE, ALPHA) a_settings.NAME = { RED, GREEN, BLUE, ALPHA };
 
+#define ANIMATION_BOOL_TO_JSON(NAME, DEFAULT_VALUE) { #NAME, a_animation.NAME },
+#define ANIMATION_FLOAT_TO_JSON(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) { #NAME, a_animation.NAME },
+#define ANIMATION_COLOR_TO_JSON(NAME, RED, GREEN, BLUE, ALPHA) { #NAME, { a_animation.NAME.red, a_animation.NAME.green, a_animation.NAME.blue, a_animation.NAME.alpha } },
+#define ANIMATION_ENUM_TO_JSON(TYPE, NAME, DEFAULT_VALUE) { #NAME, static_cast<uint8_t>(a_animation.NAME) },
+
+#define ANIMATION_REQUIRED_BOOL_FROM_JSON(NAME, DEFAULT_VALUE) a_animation.NAME = a_json.at(#NAME).get<bool>();
+#define ANIMATION_OPTIONAL_BOOL_FROM_JSON(NAME, DEFAULT_VALUE) a_animation.NAME = a_json.value(#NAME, DEFAULT_VALUE);
+#define ANIMATION_FLOAT_FROM_JSON(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) a_animation.NAME = a_json.at(#NAME).get<float>();
+#define ANIMATION_COLOR_FROM_JSON(NAME, RED, GREEN, BLUE, ALPHA) \
+    const auto& NAME##Json = a_json.at(#NAME); \
+    if (!NAME##Json.is_array() || NAME##Json.size() != 4) { return false; } \
+    a_animation.NAME = { NAME##Json.at(0).get<float>(), NAME##Json.at(1).get<float>(), NAME##Json.at(2).get<float>(), NAME##Json.at(3).get<float>() };
+#define ANIMATION_ENUM_FROM_JSON(TYPE, NAME, DEFAULT_VALUE) \
+    const auto NAME##Value = a_json.at(#NAME).get<uint8_t>(); \
+    if (NAME##Value >= static_cast<uint8_t>(TYPE::kTotal)) { return false; } \
+    a_animation.NAME = static_cast<TYPE>(NAME##Value);
+
+    json AnimationToJson(const AnimationEdit& a_animation)
+    {
+        return {
+            FOREACH_ANIMATION_REQUIRED_BOOL_PROPERTY(ANIMATION_BOOL_TO_JSON)
+            FOREACH_ANIMATION_ENUM_PROPERTY(ANIMATION_ENUM_TO_JSON)
+            FOREACH_ANIMATION_FLOAT_PROPERTY(ANIMATION_FLOAT_TO_JSON)
+            FOREACH_ANIMATION_COLOR_PROPERTY(ANIMATION_COLOR_TO_JSON)
+            FOREACH_ANIMATION_OPTIONAL_BOOL_PROPERTY(ANIMATION_BOOL_TO_JSON)
+        };
+    }
+
+    bool AnimationFromJson(const json& a_json, AnimationEdit& a_animation)
+    {
+        if (!a_json.is_object()) {
+            return false;
+        }
+
+        FOREACH_ANIMATION_REQUIRED_BOOL_PROPERTY(ANIMATION_REQUIRED_BOOL_FROM_JSON)
+        FOREACH_ANIMATION_ENUM_PROPERTY(ANIMATION_ENUM_FROM_JSON)
+        FOREACH_ANIMATION_FLOAT_PROPERTY(ANIMATION_FLOAT_FROM_JSON)
+        FOREACH_ANIMATION_COLOR_PROPERTY(ANIMATION_COLOR_FROM_JSON)
+        FOREACH_ANIMATION_OPTIONAL_BOOL_PROPERTY(ANIMATION_OPTIONAL_BOOL_FROM_JSON)
+        return Animation::IsValid(a_animation);
+    }
+
     json ToJson(const RuntimeSettings& a_settings)
     {
         return json{
@@ -80,6 +122,9 @@ namespace ParticleLightEditor::Settings
             }
             if (edit.enabledChanged) {
                 record["enabled"] = edit.enabled;
+            }
+            if (edit.animationChanged) {
+                record["animation"] = AnimationToJson(edit.animation);
             }
             records.push_back(std::move(record));
         }
@@ -140,6 +185,13 @@ namespace ParticleLightEditor::Settings
                     edit.enabled = record.at("enabled").get<bool>();
                     edit.enabledChanged = true;
                 }
+                if (record.contains("animation")) {
+                    if (!AnimationFromJson(record.at("animation"), edit.animation)) {
+                        logger::error("Saved particle-light animation contains an invalid value");
+                        return false;
+                    }
+                    edit.animationChanged = true;
+                }
                 a_edits[key] = edit;
             }
         }
@@ -171,6 +223,9 @@ namespace ParticleLightEditor::Settings
             }
             if (rule.radiusChanged) {
                 record["radiusScale"] = rule.radiusScale;
+            }
+            if (rule.animationChanged) {
+                record["animation"] = AnimationToJson(rule.animation);
             }
             records.push_back(std::move(record));
         }
@@ -216,6 +271,13 @@ namespace ParticleLightEditor::Settings
                 if (record.contains("radiusScale")) {
                     rule.radiusScale = record.at("radiusScale").get<float>();
                     rule.radiusChanged = true;
+                }
+                if (record.contains("animation")) {
+                    if (!AnimationFromJson(record.at("animation"), rule.animation)) {
+                        logger::error("Category-rule animation '{}' contains an invalid value", categoryName);
+                        return false;
+                    }
+                    rule.animationChanged = true;
                 }
                 if (!std::isfinite(rule.intensity) || !std::isfinite(rule.radiusScale) || rule.radiusScale <= 0.0F) {
                     logger::error("Category rule '{}' contains an invalid numeric value", categoryName);
