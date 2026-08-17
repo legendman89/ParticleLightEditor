@@ -27,6 +27,7 @@
 
 #define FOREACH_ANIMATION_OPTIONAL_BOOL_PROPERTY(PROPERTY) \
     PROPERTY(useSecondaryColor, false) \
+    PROPERTY(useShaderColor, false) \
     PROPERTY(randomPhase, true)
 
 #define FOREACH_ANIMATION_BOOL_PROPERTY(PROPERTY) \

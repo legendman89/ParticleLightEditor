@@ -83,21 +83,28 @@ namespace ParticleLightEditor::Menu
             GUI::Spacing();
             const std::array scopes{
                 Trans::Tr("Editor.Scope.ThisLight").c_str(),
+                Trans::Tr("Editor.Scope.BaseCell").c_str(),
+                Trans::Tr("Editor.Scope.BaseGlobal").c_str(),
                 Trans::Tr("Editor.Scope.CategoryCell").c_str(),
                 Trans::Tr("Editor.Scope.CategoryGlobal").c_str()
             };
             const auto categoryNames = Category::DisplayNames();
             auto scope = static_cast<int>(scanner.GetEditScope());
             auto category = static_cast<int>(scanner.GetTargetCategory());
+            const auto categoryScope = IsCategoryScope(scanner.GetEditScope());
             constexpr auto tableFlags = GUI::ImGuiTableFlags_SizingStretchSame | GUI::ImGuiTableFlags_NoSavedSettings;
-            if (GUI::BeginTable("EditScopeTable", 2, tableFlags)) {
+            if (GUI::BeginTable("EditScopeTable", categoryScope ? 2 : 1, tableFlags)) {
                 GUI::TableSetupColumn("##ScopeColumn", GUI::ImGuiTableColumnFlags_WidthStretch);
-                GUI::TableSetupColumn("##CategoryColumn", GUI::ImGuiTableColumnFlags_WidthStretch);
+                if (categoryScope) {
+                    GUI::TableSetupColumn("##CategoryColumn", GUI::ImGuiTableColumnFlags_WidthStretch);
+                }
                 GUI::TableNextRow();
                 GUI::TableNextColumn();
                 GUI::TextUnformatted(Trans::Tr("Editor.Scope.ApplyTo").c_str());
-                GUI::TableNextColumn();
-                GUI::TextUnformatted(Trans::Tr("Editor.Scope.TargetCategory").c_str());
+                if (categoryScope) {
+                    GUI::TableNextColumn();
+                    GUI::TextUnformatted(Trans::Tr("Editor.Scope.TargetCategory").c_str());
+                }
                 GUI::TableNextRow();
                 GUI::TableNextColumn();
                 GUI::SetNextItemWidth(-1.0F);
@@ -106,20 +113,22 @@ namespace ParticleLightEditor::Menu
                     ClearEditorStatus();
                 }
                 Controls::Tooltip(Trans::Tr("Editor.Scope.Tooltip").c_str());
-                GUI::TableNextColumn();
-                GUI::SetNextItemWidth(-1.0F);
-                if (GUI::Combo("##TargetCategory", &category, categoryNames.data(), static_cast<int>(categoryNames.size()))) {
-                    scanner.SetTargetCategory(static_cast<ParticleCategory>(category));
-                    ClearEditorStatus();
+                if (categoryScope) {
+                    GUI::TableNextColumn();
+                    GUI::SetNextItemWidth(-1.0F);
+                    if (GUI::Combo("##TargetCategory", &category, categoryNames.data(), static_cast<int>(categoryNames.size()))) {
+                        scanner.SetTargetCategory(static_cast<ParticleCategory>(category));
+                        ClearEditorStatus();
+                    }
+                    Controls::Tooltip(Trans::Tr("Editor.Scope.Category.Tooltip").c_str());
                 }
-                Controls::Tooltip(Trans::Tr("Editor.Scope.Category.Tooltip").c_str());
                 GUI::EndTable();
             }
 
             GUI::Spacing();
 
             const auto targetCategory = scanner.GetTargetCategory();
-            if (targetCategory != ParticleCategory::kUnclassified && targetCategory != a_editor.category) {
+            if (categoryScope && targetCategory != ParticleCategory::kUnclassified && targetCategory != a_editor.category) {
                 if (Controls::CTAButton(Trans::Tr("Editor.Scope.Assign").c_str(), true)) {
                     scanner.SetSelectedCategory(targetCategory);
                     GetEditorWindowState().status = Trans::Tr("Editor.Scope.Assigned");
@@ -127,7 +136,7 @@ namespace ParticleLightEditor::Menu
                 Controls::Tooltip(Trans::Tr("Editor.Scope.Assign.Tooltip").c_str());
             }
 
-            if (scanner.GetEditScope() != EditScope::kSelectedLight && targetCategory == ParticleCategory::kUnclassified) {
+            if (categoryScope && targetCategory == ParticleCategory::kUnclassified) {
                 GUI::TextWrapped("%s", Trans::Tr("Editor.Scope.ChooseCategory").c_str());
             }
             else {

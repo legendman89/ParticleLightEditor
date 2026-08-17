@@ -67,9 +67,20 @@ namespace ParticleLightEditor::Menu::AnimationUI
             Controls::Tooltip(Trans::Tr("Editor.Animation.Brightness.Tooltip").c_str());
             GUI::TableNextColumn();
 
+            if (a_editor.usesVertexColors) {
+                BeginPropertyRow(Trans::Tr("Editor.Animation.ShaderColor").c_str());
+                const auto shaderColorLabel = std::format("{}##AnimateShaderColor", Trans::Tr("Editor.Animation.ShaderColor.Checkbox"));
+                if (GUI::Checkbox(shaderColorLabel.c_str(), &animation.useShaderColor)) {
+                    Apply(scanner, animation, "Editor.Animation.Updated");
+                }
+                Controls::Tooltip(Trans::Tr("Editor.Animation.ShaderColor.Tooltip").c_str());
+                GUI::TableNextColumn();
+            }
+
+            const auto colorEnabled = !a_editor.usesVertexColors || animation.useShaderColor;
             BeginPropertyRow(Trans::Tr("Editor.Animation.PrimaryColor").c_str());
             std::array primary{ animation.primaryColor.red, animation.primaryColor.green, animation.primaryColor.blue };
-            if (a_editor.usesVertexColors) {
+            if (!colorEnabled) {
                 GUI::BeginDisabled();
             }
             GUI::SetNextItemWidth(-1.0F);
@@ -77,27 +88,27 @@ namespace ParticleLightEditor::Menu::AnimationUI
                 animation.primaryColor = { primary[0], primary[1], primary[2], a_editor.color.alpha };
                 Apply(scanner, animation, "Editor.Animation.Updated");
             }
-            if (a_editor.usesVertexColors) {
+            if (!colorEnabled) {
                 GUI::EndDisabled();
             }
-            Controls::Tooltip(Trans::Tr(a_editor.usesVertexColors ? "Editor.Animation.Color.Tooltip.Vertex" : "Editor.Animation.PrimaryColor.Tooltip").c_str());
+            Controls::Tooltip(Trans::Tr(colorEnabled ? "Editor.Animation.PrimaryColor.Tooltip" : "Editor.Animation.Color.Tooltip.Vertex").c_str());
             GUI::TableNextColumn();
 
             BeginPropertyRow(Trans::Tr("Editor.Animation.SecondaryColor").c_str());
             auto useSecondary = animation.useSecondaryColor;
-            if (a_editor.usesVertexColors) {
+            if (!colorEnabled) {
                 GUI::BeginDisabled();
             }
             if (GUI::Checkbox("##UseAnimationSecondaryColor", &useSecondary)) {
                 animation.useSecondaryColor = useSecondary;
                 Apply(scanner, animation, "Editor.Animation.Updated");
             }
-            if (a_editor.usesVertexColors) {
+            if (!colorEnabled) {
                 GUI::EndDisabled();
             }
             Controls::Tooltip(Trans::Tr("Editor.Animation.SecondaryColor.ToggleTooltip").c_str());
             GUI::SameLine(0.0F, 10.0F);
-            if (!animation.useSecondaryColor || a_editor.usesVertexColors) {
+            if (!animation.useSecondaryColor || !colorEnabled) {
                 GUI::BeginDisabled();
             }
             std::array secondary{ animation.secondaryColor.red, animation.secondaryColor.green, animation.secondaryColor.blue };
@@ -106,10 +117,10 @@ namespace ParticleLightEditor::Menu::AnimationUI
                 animation.secondaryColor = { secondary[0], secondary[1], secondary[2], a_editor.color.alpha };
                 Apply(scanner, animation, "Editor.Animation.Updated");
             }
-            if (!animation.useSecondaryColor || a_editor.usesVertexColors) {
+            if (!animation.useSecondaryColor || !colorEnabled) {
                 GUI::EndDisabled();
             }
-            Controls::Tooltip(Trans::Tr(a_editor.usesVertexColors ? "Editor.Animation.Color.Tooltip.Vertex" : "Editor.Animation.SecondaryColor.Tooltip").c_str());
+            Controls::Tooltip(Trans::Tr(colorEnabled ? "Editor.Animation.SecondaryColor.Tooltip" : "Editor.Animation.Color.Tooltip.Vertex").c_str());
             GUI::TableNextColumn();
 
             BeginPropertyRow(Trans::Tr("Editor.Animation.Variation").c_str());

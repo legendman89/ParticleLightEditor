@@ -12,6 +12,12 @@
 
 #define ANIMATION_FLOAT_CLAMP(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) animation.NAME = std::clamp(animation.NAME, MINIMUM, MAXIMUM);
 #define ANIMATION_COLOR_CLAMP(NAME, RED, GREEN, BLUE, ALPHA) animation.NAME = { std::clamp(animation.NAME.red, 0.0F, 10.0F), std::clamp(animation.NAME.green, 0.0F, 10.0F), std::clamp(animation.NAME.blue, 0.0F, 10.0F), std::clamp(animation.NAME.alpha, 0.0F, 1.0F) };
+#define APPLY_SCOPE_PROPERTY(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) APPLY_SCOPE_PROPERTY_##PROPERTY(NAME, CHANGED)
+#define APPLY_SCOPE_PROPERTY_kColor(NAME, CHANGED) if (rule.CHANGED && rule.NAME##Revision >= a_edit.colorRevision) { a_edit.color = rule.NAME; a_edit.colorChanged = true; a_edit.colorRevision = rule.NAME##Revision; }
+#define APPLY_SCOPE_PROPERTY_kIntensity(NAME, CHANGED) if (rule.CHANGED && rule.NAME##Revision >= a_edit.intensityRevision) { a_edit.intensity = rule.NAME; a_edit.intensityChanged = true; a_edit.intensityRevision = rule.NAME##Revision; }
+#define APPLY_SCOPE_PROPERTY_kRadius(NAME, CHANGED) if (rule.CHANGED && rule.NAME##Revision >= a_edit.radiusRevision && std::isfinite(rule.NAME) && rule.NAME > 0.0F) { a_edit.radius = a_edit.defaults.radius * rule.NAME; a_edit.radiusChanged = true; a_edit.radiusRevision = rule.NAME##Revision; }
+#define APPLY_SCOPE_PROPERTY_kPosition(NAME, CHANGED) if (rule.CHANGED && rule.NAME##Revision >= a_edit.localPositionRevision) { a_edit.localPosition = rule.NAME; a_edit.positionChanged = true; a_edit.localPositionRevision = rule.NAME##Revision; }
+#define APPLY_SCOPE_PROPERTY_kEnabled(NAME, CHANGED) if (rule.CHANGED && rule.NAME##Revision >= a_edit.enabledRevision) { a_edit.enabled = rule.NAME; a_edit.enabledChanged = true; a_edit.enabledRevision = rule.NAME##Revision; }
 
 namespace ParticleLightEditor
 {
@@ -216,8 +222,8 @@ namespace ParticleLightEditor
         if (a_index >= editorIndices.size()) {
             return false;
         }
-        const auto* edit = FindEdit(entries[editorIndices[a_index]]);
-        return edit && HasChanges(*edit);
+        const auto& entry = entries[editorIndices[a_index]];
+        return FindEdit(entry) && HasChanges(GetEffectiveEdit(entry));
     }
 
     bool Scanner::SelectLight(size_t a_index)
@@ -332,21 +338,27 @@ namespace ParticleLightEditor
         }
 
         const auto& rule = found->second;
-        if (rule.colorChanged) {
-            a_edit.color = rule.color;
-            a_edit.colorChanged = true;
-        }
-        if (rule.intensityChanged) {
-            a_edit.intensity = rule.intensity;
-            a_edit.intensityChanged = true;
-        }
-        if (rule.radiusChanged && std::isfinite(rule.radiusScale) && rule.radiusScale > 0.0F) {
-            a_edit.radius = a_edit.defaults.radius * rule.radiusScale;
-            a_edit.radiusChanged = true;
-        }
-        if (rule.animationChanged) {
+        FOREACH_CATEGORY_RULE_PROPERTY(APPLY_SCOPE_PROPERTY)
+        if (rule.animationChanged && rule.animationRevision >= a_edit.animationRevision) {
             a_edit.animation = rule.animation;
             a_edit.animationChanged = true;
+            a_edit.animationRevision = rule.animationRevision;
+        }
+    }
+
+    void Scanner::ApplyBaseRule(Edit& a_edit, const BaseRuleKey& a_key) const
+    {
+        const auto found = baseRules.find(a_key);
+        if (found == baseRules.end()) {
+            return;
+        }
+
+        const auto& rule = found->second;
+        FOREACH_SCOPE_EDIT_PROPERTY(APPLY_SCOPE_PROPERTY)
+        if (rule.animationChanged && rule.animationRevision >= a_edit.animationRevision) {
+            a_edit.animation = rule.animation;
+            a_edit.animationChanged = true;
+            a_edit.animationRevision = rule.animationRevision;
         }
     }
 
@@ -365,6 +377,12 @@ namespace ParticleLightEditor
                 ApplyCategoryRule(effective, { a_entry.category, a_entry.cellFormID });
             }
         }
+        if (a_entry.baseFormID != 0) {
+            ApplyBaseRule(effective, { a_entry.baseFormID, a_entry.particleOrdinal, 0 });
+            if (a_entry.cellFormID != 0) {
+                ApplyBaseRule(effective, { a_entry.baseFormID, a_entry.particleOrdinal, a_entry.cellFormID });
+            }
+        }
         return effective;
     }
 
@@ -379,6 +397,7 @@ namespace ParticleLightEditor
             return false;
         }
         const auto edit = GetEffectiveEdit(*appearanceEntry);
+        const auto selectedEdit = GetEffectiveEdit(*entry);
 
         a_state.nodeName = entry->nodeName;
         a_state.objectName = entry->baseName;
@@ -389,11 +408,11 @@ namespace ParticleLightEditor
         a_state.ownerFormID = entry->ownerFormID;
         a_state.associatedLightRefID = entry->associatedLightRefID;
         a_state.color = edit.color;
-        a_state.localPosition = baseEdit->positionChanged ? baseEdit->localPosition : geometry->local.translate;
+        a_state.localPosition = selectedEdit.positionChanged ? selectedEdit.localPosition : geometry->local.translate;
         a_state.intensity = edit.intensity;
         a_state.radius = edit.radiusChanged ? edit.radius : edit.defaults.radius;
         a_state.defaultRadius = edit.defaults.radius;
-        a_state.enabled = baseEdit->enabledChanged ? baseEdit->enabled : baseEdit->defaults.enabled;
+        a_state.enabled = selectedEdit.enabledChanged ? selectedEdit.enabled : selectedEdit.defaults.enabled;
         a_state.category = entry->category;
         a_state.animation = edit.animation;
         a_state.animationEdited = edit.animationChanged;
@@ -412,18 +431,20 @@ namespace ParticleLightEditor
 
         const RE::NiColorA color{ std::clamp(a_color.red, 0.0F, 10.0F), std::clamp(a_color.green, 0.0F, 10.0F), std::clamp(a_color.blue, 0.0F, 10.0F), std::clamp(a_color.alpha, 0.0F, 1.0F) };
         if (editScope != EditScope::kSelectedLight) {
-            if (targetCategory == ParticleCategory::kUnclassified) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
                 return false;
             }
-            auto& rule = categoryRules[GetSelectedCategoryRuleKey()];
-            rule.color = color;
-            rule.colorChanged = true;
+            rule->color = color;
+            rule->colorChanged = true;
+            rule->colorRevision = NextEditRevision();
             ApplyParticleLightEdits();
             return true;
         }
 
         edit->color = color;
         edit->colorChanged = true;
+        edit->colorRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -440,18 +461,20 @@ namespace ParticleLightEditor
 
         const auto intensity = std::clamp(a_intensity, 0.0F, 100.0F);
         if (editScope != EditScope::kSelectedLight) {
-            if (targetCategory == ParticleCategory::kUnclassified) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
                 return false;
             }
-            auto& rule = categoryRules[GetSelectedCategoryRuleKey()];
-            rule.intensity = intensity;
-            rule.intensityChanged = true;
+            rule->intensity = intensity;
+            rule->intensityChanged = true;
+            rule->intensityRevision = NextEditRevision();
             ApplyParticleLightEdits();
             return true;
         }
 
         edit->intensity = intensity;
         edit->intensityChanged = true;
+        edit->intensityRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -478,18 +501,20 @@ namespace ParticleLightEditor
         }
 
         if (editScope != EditScope::kSelectedLight) {
-            if (targetCategory == ParticleCategory::kUnclassified) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
                 return false;
             }
-            auto& rule = categoryRules[GetSelectedCategoryRuleKey()];
-            rule.radiusScale = a_radius / radiusEdit->defaults.radius;
-            rule.radiusChanged = true;
+            rule->radiusScale = a_radius / radiusEdit->defaults.radius;
+            rule->radiusChanged = true;
+            rule->radiusScaleRevision = NextEditRevision();
             ApplyParticleLightEdits();
             return true;
         }
 
         edit->radius = a_radius;
         edit->radiusChanged = true;
+        edit->radiusRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -504,8 +529,21 @@ namespace ParticleLightEditor
             return false;
         }
 
+        if (IsBaseScope(editScope)) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
+                return false;
+            }
+            rule->localPosition = a_position;
+            rule->positionChanged = true;
+            rule->localPositionRevision = NextEditRevision();
+            ApplyParticleLightEdits();
+            return true;
+        }
+
         edit->localPosition = a_position;
         edit->positionChanged = true;
+        edit->localPositionRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -520,8 +558,21 @@ namespace ParticleLightEditor
             return false;
         }
 
+        if (IsBaseScope(editScope)) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
+                return false;
+            }
+            rule->enabled = a_enabled;
+            rule->enabledChanged = true;
+            rule->enabledRevision = NextEditRevision();
+            ApplyParticleLightEdits();
+            return true;
+        }
+
         edit->enabled = a_enabled;
         edit->enabledChanged = true;
+        edit->enabledRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -545,18 +596,20 @@ namespace ParticleLightEditor
         }
 
         if (editScope != EditScope::kSelectedLight) {
-            if (targetCategory == ParticleCategory::kUnclassified) {
+            auto* rule = GetOrCreateSelectedScopeEdit();
+            if (!rule) {
                 return false;
             }
-            auto& rule = categoryRules[GetSelectedCategoryRuleKey()];
-            rule.animation = animation;
-            rule.animationChanged = true;
+            rule->animation = animation;
+            rule->animationChanged = true;
+            rule->animationRevision = NextEditRevision();
             ApplyParticleLightEdits();
             return true;
         }
 
         edit->animation = animation;
         edit->animationChanged = true;
+        edit->animationRevision = NextEditRevision();
         auto effectiveEdit = GetEffectiveEdit(*entry);
         const auto applied = Editor::Apply(*entry, effectiveEdit) && Animation::Apply(*entry, effectiveEdit);
         ReferenceManager::GetSingleton().Capture(*entry, *edit);
@@ -577,6 +630,7 @@ namespace ParticleLightEditor
             }
             Animation::Restore(*entry, *edit);
             edit->animationChanged = false;
+            edit->animationRevision = 0;
             edit->animation = Animation::MakeDefault(edit->defaults, entry->category);
             auto effectiveEdit = GetEffectiveEdit(*entry);
             const auto applied = Editor::Apply(*entry, effectiveEdit) && Animation::Apply(*entry, effectiveEdit);
@@ -584,9 +638,8 @@ namespace ParticleLightEditor
             return applied;
         }
 
-        const auto key = GetSelectedCategoryRuleKey();
-        const auto found = categoryRules.find(key);
-        if (found == categoryRules.end() || !found->second.animationChanged) {
+        auto* rule = FindSelectedScopeEdit();
+        if (!rule || !rule->animationChanged) {
             return false;
         }
         for (auto& current : entries) {
@@ -597,9 +650,15 @@ namespace ParticleLightEditor
                 }
             }
         }
-        found->second.animationChanged = false;
-        if (!HasChanges(found->second)) {
-            categoryRules.erase(found);
+        rule->animationChanged = false;
+        rule->animationRevision = 0;
+        if (!HasChanges(*rule)) {
+            if (IsBaseScope(editScope)) {
+                baseRules.erase(GetSelectedBaseRuleKey());
+            }
+            else {
+                categoryRules.erase(GetSelectedCategoryRuleKey());
+            }
         }
         ApplyParticleLightEdits();
         return true;
@@ -615,8 +674,8 @@ namespace ParticleLightEditor
         if (editScope == EditScope::kSelectedLight) {
             return edit->animationChanged;
         }
-        const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
-        return found != categoryRules.end() && found->second.animationChanged;
+        auto* rule = FindSelectedScopeEdit();
+        return rule && rule->animationChanged;
     }
 
     bool Scanner::ResetSelectedLight()
@@ -647,7 +706,7 @@ namespace ParticleLightEditor
             return false;
         }
 
-        const auto selectedOnly = editScope == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled;
+        const auto selectedOnly = !ScopeSupportsProperty(editScope, a_property);
         if (selectedOnly) {
             if (!IsPropertyChanged(*edit, a_property) || !Editor::Restore(*entry, *edit)) {
                 return false;
@@ -659,9 +718,8 @@ namespace ParticleLightEditor
             return applied;
         }
 
-        const auto key = GetSelectedCategoryRuleKey();
-        const auto found = categoryRules.find(key);
-        if (found == categoryRules.end() || !IsPropertyChanged(found->second, a_property)) {
+        auto* rule = FindSelectedScopeEdit();
+        if (!rule || !IsPropertyChanged(*rule, a_property)) {
             return false;
         }
         for (auto& current : entries) {
@@ -669,9 +727,14 @@ namespace ParticleLightEditor
                 RestoreEntryRuntime(current);
             }
         }
-        ClearProperty(found->second, a_property);
-        if (!HasChanges(found->second)) {
-            categoryRules.erase(found);
+        ClearProperty(*rule, a_property);
+        if (!HasChanges(*rule)) {
+            if (IsBaseScope(editScope)) {
+                baseRules.erase(GetSelectedBaseRuleKey());
+            }
+            else {
+                categoryRules.erase(GetSelectedCategoryRuleKey());
+            }
         }
         ApplyParticleLightEdits();
         return true;
@@ -691,11 +754,11 @@ namespace ParticleLightEditor
         if (!edit) {
             return false;
         }
-        if (editScope == EditScope::kSelectedLight || a_property == EditProperty::kPosition || a_property == EditProperty::kEnabled) {
+        if (!ScopeSupportsProperty(editScope, a_property)) {
             return IsPropertyChanged(*edit, a_property);
         }
-        const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
-        return found != categoryRules.end() && IsPropertyChanged(found->second, a_property);
+        const auto* rule = FindSelectedScopeEdit();
+        return rule && IsPropertyChanged(*rule, a_property);
     }
 
     bool Scanner::SetEditScope(EditScope a_scope)
@@ -731,6 +794,54 @@ namespace ParticleLightEditor
         return { targetCategory, editScope == EditScope::kCategoryCell ? entry->cellFormID : 0 };
     }
 
+    BaseRuleKey Scanner::GetSelectedBaseRuleKey() const
+    {
+        const auto* entry = GetSelectedEntry();
+        if (!entry) {
+            return {};
+        }
+        return { entry->baseFormID, entry->particleOrdinal, editScope == EditScope::kBaseCell ? entry->cellFormID : 0 };
+    }
+
+    ScopeEdit* Scanner::GetOrCreateSelectedScopeEdit()
+    {
+        if (IsBaseScope(editScope)) {
+            const auto key = GetSelectedBaseRuleKey();
+            return key.baseFormID != 0 ? &baseRules[key] : nullptr;
+        }
+        if (IsCategoryScope(editScope)) {
+            const auto key = GetSelectedCategoryRuleKey();
+            return key.category != ParticleCategory::kUnclassified ? &categoryRules[key] : nullptr;
+        }
+        return nullptr;
+    }
+
+    ScopeEdit* Scanner::FindSelectedScopeEdit()
+    {
+        if (IsBaseScope(editScope)) {
+            const auto found = baseRules.find(GetSelectedBaseRuleKey());
+            return found != baseRules.end() ? &found->second : nullptr;
+        }
+        if (IsCategoryScope(editScope)) {
+            const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
+            return found != categoryRules.end() ? &found->second : nullptr;
+        }
+        return nullptr;
+    }
+
+    const ScopeEdit* Scanner::FindSelectedScopeEdit() const
+    {
+        if (IsBaseScope(editScope)) {
+            const auto found = baseRules.find(GetSelectedBaseRuleKey());
+            return found != baseRules.end() ? &found->second : nullptr;
+        }
+        if (IsCategoryScope(editScope)) {
+            const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
+            return found != categoryRules.end() ? &found->second : nullptr;
+        }
+        return nullptr;
+    }
+
     bool Scanner::MatchesSelectedScope(const Entry& a_entry) const
     {
         const auto* selected = GetSelectedEntry();
@@ -740,14 +851,17 @@ namespace ParticleLightEditor
         if (editScope == EditScope::kSelectedLight) {
             return &a_entry == selected;
         }
-        return a_entry.category == targetCategory &&
-            (editScope != EditScope::kCategoryCell || a_entry.cellFormID == selected->cellFormID);
+        if (IsBaseScope(editScope)) {
+            return selected->baseFormID != 0 && a_entry.baseFormID == selected->baseFormID && a_entry.particleOrdinal == selected->particleOrdinal &&
+                (editScope != EditScope::kBaseCell || a_entry.cellFormID == selected->cellFormID);
+        }
+        return a_entry.category == targetCategory && (editScope != EditScope::kCategoryCell || a_entry.cellFormID == selected->cellFormID);
     }
 
     const Entry* Scanner::GetScopeRepresentative() const
     {
         const auto* selected = GetSelectedEntry();
-        if (!selected || editScope == EditScope::kSelectedLight || targetCategory == ParticleCategory::kUnclassified) {
+        if (!selected || editScope == EditScope::kSelectedLight || (IsCategoryScope(editScope) && targetCategory == ParticleCategory::kUnclassified)) {
             return selected;
         }
 
@@ -815,9 +929,8 @@ namespace ParticleLightEditor
             return ResetSelectedLight();
         }
 
-        const auto key = GetSelectedCategoryRuleKey();
-        const auto found = categoryRules.find(key);
-        if (found == categoryRules.end()) {
+        const auto* rule = FindSelectedScopeEdit();
+        if (!rule) {
             return false;
         }
 
@@ -826,7 +939,12 @@ namespace ParticleLightEditor
                 RestoreEntryRuntime(entry);
             }
         }
-        categoryRules.erase(found);
+        if (IsBaseScope(editScope)) {
+            baseRules.erase(GetSelectedBaseRuleKey());
+        }
+        else {
+            categoryRules.erase(GetSelectedCategoryRuleKey());
+        }
         ApplyParticleLightEdits();
         return true;
     }
@@ -836,8 +954,8 @@ namespace ParticleLightEditor
         if (editScope == EditScope::kSelectedLight) {
             return IsSelectedLightEdited();
         }
-        const auto found = categoryRules.find(GetSelectedCategoryRuleKey());
-        return found != categoryRules.end() && HasChanges(found->second);
+        const auto* rule = FindSelectedScopeEdit();
+        return rule && HasChanges(*rule);
     }
 
     void Scanner::UpdateEditorList(RE::PlayerCharacter* a_player)
@@ -885,3 +1003,12 @@ namespace ParticleLightEditor
         }
     }
 }
+
+#undef ANIMATION_FLOAT_CLAMP
+#undef ANIMATION_COLOR_CLAMP
+#undef APPLY_SCOPE_PROPERTY
+#undef APPLY_SCOPE_PROPERTY_kColor
+#undef APPLY_SCOPE_PROPERTY_kIntensity
+#undef APPLY_SCOPE_PROPERTY_kRadius
+#undef APPLY_SCOPE_PROPERTY_kPosition
+#undef APPLY_SCOPE_PROPERTY_kEnabled

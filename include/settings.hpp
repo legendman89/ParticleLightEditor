@@ -19,7 +19,7 @@ using json = nlohmann::json;
 #define COLOR_SETTING_DEFINE(NAME, RED, GREEN, BLUE, ALPHA) std::array<float, 4> NAME{ RED, GREEN, BLUE, ALPHA };
 #define SETTING_EQUAL(NAME, DEFAULT_VALUE) a_left.NAME == a_right.NAME &&
 #define COLOR_SETTING_EQUAL(NAME, RED, GREEN, BLUE, ALPHA) a_left.NAME == a_right.NAME &&
-#define EDIT_PROPERTY_FLAG_EQUAL(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) a_left.CHANGED == a_right.CHANGED &&
+#define EDIT_PROPERTY_FLAG_EQUAL(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) a_left.CHANGED == a_right.CHANGED && (!a_left.CHANGED || a_left.NAME##Revision == a_right.NAME##Revision) &&
 #define EDIT_PROPERTY_VALUE_EQUAL(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) (!a_left.CHANGED || EDIT_PROPERTY_COMPARE_##COMPARISON(NAME)) &&
 #define EDIT_PROPERTY_COMPARE_COLOR(NAME) Utility::ColorsEqual(a_left.NAME, a_right.NAME)
 #define EDIT_PROPERTY_COMPARE_POINT(NAME) Utility::PointsEqual(a_left.NAME, a_right.NAME)
@@ -51,6 +51,10 @@ namespace ParticleLightEditor::Settings
 
     bool CategoryRulesFromJson(const json& a_json, CategoryRuleMap& a_rules);
 
+    json BaseRulesToJson(const BaseRuleMap& a_rules);
+
+    bool BaseRulesFromJson(const json& a_json, BaseRuleMap& a_rules);
+
     json CategoryOverridesToJson(const CategoryOverrideMap& a_overrides);
 
     bool CategoryOverridesFromJson(const json& a_json, CategoryOverrideMap& a_overrides);
@@ -58,6 +62,8 @@ namespace ParticleLightEditor::Settings
     bool EditsEqual(const EditMap& a_left, const EditMap& a_right);
 
     bool CategoryRulesEqual(const CategoryRuleMap& a_left, const CategoryRuleMap& a_right);
+
+    bool BaseRulesEqual(const BaseRuleMap& a_left, const BaseRuleMap& a_right);
 
     bool WriteJsonFile(const fs::path& a_path, const json& a_json);
 
@@ -101,6 +107,12 @@ namespace ParticleLightEditor::Settings
         return rules;
     }
 
+    inline BaseRuleMap& GetSavedBaseRules()
+    {
+        static BaseRuleMap rules;
+        return rules;
+    }
+
     inline CategoryOverrideMap& GetSavedCategoryOverrides()
     {
         static CategoryOverrideMap overrides;
@@ -131,16 +143,17 @@ namespace ParticleLightEditor::Settings
     }
 
     inline bool EditEqual(const Edit& a_left, const Edit& a_right) { return FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL)
-        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || Animation::Equal(a_left.animation, a_right.animation)); }
+        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || (a_left.animationRevision == a_right.animationRevision && Animation::Equal(a_left.animation, a_right.animation))); }
 
-    inline bool CategoryRuleEqual(const CategoryRule& a_left, const CategoryRule& a_right) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_CATEGORY_RULE_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL)
-        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || Animation::Equal(a_left.animation, a_right.animation)); }
+    inline bool ScopeEditEqual(const ScopeEdit& a_left, const ScopeEdit& a_right) { return FOREACH_SCOPE_EDIT_PROPERTY(EDIT_PROPERTY_FLAG_EQUAL) FOREACH_SCOPE_EDIT_PROPERTY(EDIT_PROPERTY_VALUE_EQUAL)
+        a_left.animationChanged == a_right.animationChanged && (!a_left.animationChanged || (a_left.animationRevision == a_right.animationRevision && Animation::Equal(a_left.animation, a_right.animation))); }
 
     inline bool AreEditsDirty()
     {
         const auto& scanner = Scanner::GetSingleton();
         return !EditsEqual(scanner.GetEdits(), GetSavedEdits()) ||
             !CategoryRulesEqual(scanner.GetCategoryRules(), GetSavedCategoryRules()) ||
+            !BaseRulesEqual(scanner.GetBaseRules(), GetSavedBaseRules()) ||
             scanner.GetCategoryOverrides() != GetSavedCategoryOverrides();
     }
 

@@ -193,6 +193,16 @@ namespace ParticleLightEditor::Animation
         return std::isfinite(a_edit.intensity) ? a_edit.intensity : a_edit.defaults.intensity;
     }
 
+    inline RE::NiColorA BaseMaterialColor(const Edit& a_edit)
+    {
+        auto color = a_edit.color;
+        if (a_edit.defaults.usesVertexColors) {
+            color = a_edit.defaults.materialColor;
+            color.alpha = a_edit.color.alpha;
+        }
+        return color;
+    }
+
     inline void SetNativeActive(Entry& a_entry, bool a_active)
     {
         if (a_entry.nativeColorController) {
@@ -207,12 +217,7 @@ namespace ParticleLightEditor::Animation
             return false;
         }
 
-        auto color = a_edit.color;
-        if (a_edit.defaults.usesVertexColors) {
-            color = a_edit.defaults.materialColor;
-            color.alpha = a_edit.color.alpha;
-        }
-        material->baseColor = color;
+        material->baseColor = BaseMaterialColor(a_edit);
         material->baseColorScale = a_edit.intensity;
         if (auto* geometry = a_entry.geometry.get()) {
             geometry->SetMaterialNeedsUpdate(true);

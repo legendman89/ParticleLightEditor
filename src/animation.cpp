@@ -153,9 +153,16 @@ namespace ParticleLightEditor::Animation
         const auto colorAmount = CurrentColorAmount(animation, phase);
 
         auto changed = false;
-        if (!a_edit.defaults.usesVertexColors) {
+        if (!a_edit.defaults.usesVertexColors || animation.useShaderColor) {
             auto color = Linear(animation.primaryColor, animation.secondaryColor, colorAmount);
             color.alpha = a_edit.color.alpha;
+            if (!Utility::ColorsEqual(material->baseColor, color)) {
+                material->baseColor = color;
+                changed = true;
+            }
+        }
+        else {
+            const auto color = BaseMaterialColor(a_edit);
             if (!Utility::ColorsEqual(material->baseColor, color)) {
                 material->baseColor = color;
                 changed = true;

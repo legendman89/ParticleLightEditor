@@ -8,9 +8,12 @@
 
 #define EDIT_PROPERTY_ENUM(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) PROPERTY,
 #define EDIT_CHANGED_DEFINE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) bool CHANGED{ false };
+// Revisions make overlapping scopes resolve independently for each property. Zero keeps older settings compatible.
+#define EDIT_REVISION_DEFINE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) uint64_t NAME##Revision{ 0 };
 #define EDIT_CHANGED_CHECK(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) a_edit.CHANGED ||
 #define EDIT_CHANGED_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: return a_edit.CHANGED;
-#define EDIT_CLEAR_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: a_edit.CHANGED = false; return;
+#define EDIT_CLEAR_CASE(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) case EditProperty::PROPERTY: a_edit.CHANGED = false; a_edit.NAME##Revision = 0; return;
+#define EDIT_LATEST_REVISION(PROPERTY, NAME, CHANGED, COMPARISON, LABEL) if (a_edit.CHANGED) { revision = std::max(revision, a_edit.NAME##Revision); }
 #define ANIMATION_PROFILE_ENUM(PROFILE, LABEL, DURATION) PROFILE,
 #define ANIMATION_COLOR_DEFINE(NAME, RED, GREEN, BLUE, ALPHA) RE::NiColorA NAME{ RED, GREEN, BLUE, ALPHA };
 #define ANIMATION_FLOAT_DEFINE(NAME, DEFAULT_VALUE, MINIMUM, MAXIMUM) float NAME{ DEFAULT_VALUE };
@@ -33,6 +36,8 @@ namespace ParticleLightEditor
     enum class EditScope : uint8_t
     {
         kSelectedLight,
+        kBaseCell,
+        kBaseGlobal,
         kCategoryCell,
         kCategoryGlobal,
         kTotal
@@ -72,6 +77,17 @@ namespace ParticleLightEditor
         FOREACH_EDIT_PROPERTY(EDIT_PROPERTY_ENUM)
     };
 
+    inline bool IsBaseScope(EditScope a_scope) { return a_scope == EditScope::kBaseCell || a_scope == EditScope::kBaseGlobal; }
+
+    inline bool IsCategoryScope(EditScope a_scope) { return a_scope == EditScope::kCategoryCell || a_scope == EditScope::kCategoryGlobal; }
+
+    inline bool ScopeSupportsProperty(EditScope a_scope, EditProperty a_property)
+    {
+        return IsBaseScope(a_scope) || (IsCategoryScope(a_scope) && a_property != EditProperty::kPosition && a_property != EditProperty::kEnabled);
+    }
+
+    inline size_t CombineHashes(size_t a_left, size_t a_right) { return a_left ^ (a_right + 0x9E3779B9 + (a_left << 6) + (a_left >> 2)); }
+
     struct CategoryRuleKey
     {
         ParticleCategory category{ ParticleCategory::kUnclassified };
@@ -86,23 +102,48 @@ namespace ParticleLightEditor
         {
             const auto categoryHash = std::hash<uint8_t>{}(static_cast<uint8_t>(a_key.category));
             const auto cellHash = std::hash<RE::FormID>{}(a_key.cellFormID);
-            return categoryHash ^ (cellHash + 0x9E3779B9 + (categoryHash << 6) + (categoryHash >> 2));
+            return CombineHashes(categoryHash, cellHash);
         }
     };
 
-    struct CategoryRule
+    struct BaseRuleKey
+    {
+        RE::FormID baseFormID{ 0 };
+        size_t particleOrdinal{ 0 };
+        RE::FormID cellFormID{ 0 };  // Zero means every cell.
+
+        bool operator==(const BaseRuleKey&) const = default;
+    };
+
+    struct BaseRuleKeyHash
+    {
+        size_t operator()(const BaseRuleKey& a_key) const
+        {
+            const auto baseHash = std::hash<RE::FormID>{}(a_key.baseFormID);
+            const auto ordinalHash = std::hash<size_t>{}(a_key.particleOrdinal);
+            const auto cellHash = std::hash<RE::FormID>{}(a_key.cellFormID);
+            return CombineHashes(CombineHashes(baseHash, ordinalHash), cellHash);
+        }
+    };
+
+    struct ScopeEdit
     {
         RE::NiColorA color{ 1.0F, 1.0F, 1.0F, 1.0F };
         float intensity{ 1.0F };
         float radiusScale{ 1.0F };
-        FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_DEFINE)
+        RE::NiPoint3 localPosition{};
+        bool enabled{ true };
+        FOREACH_SCOPE_EDIT_PROPERTY(EDIT_CHANGED_DEFINE)
+        FOREACH_SCOPE_EDIT_PROPERTY(EDIT_REVISION_DEFINE)
         AnimationEdit animation;
         bool animationChanged{ false };
+        uint64_t animationRevision{ 0 };
     };
 
-    inline bool HasChanges(const CategoryRule& a_edit) { return FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CHECK) a_edit.animationChanged; }
+    inline bool HasChanges(const ScopeEdit& a_edit) { return FOREACH_SCOPE_EDIT_PROPERTY(EDIT_CHANGED_CHECK) a_edit.animationChanged; }
 
-    using CategoryRuleMap = std::unordered_map<CategoryRuleKey, CategoryRule, CategoryRuleKeyHash>;
+    using CategoryRuleMap = std::unordered_map<CategoryRuleKey, ScopeEdit, CategoryRuleKeyHash>;
+    using BaseRuleMap = std::unordered_map<BaseRuleKey, ScopeEdit, BaseRuleKeyHash>;
     using CategoryOverrideMap = std::unordered_map<std::string, ParticleCategory>;
 
     struct ScanCounters
@@ -198,7 +239,7 @@ namespace ParticleLightEditor
         {
             const auto referenceHash = std::hash<RE::FormID>{}(a_key.referenceFormID);
             const auto ordinalHash = std::hash<size_t>{}(a_key.particleOrdinal);
-            return referenceHash ^ (ordinalHash + 0x9E3779B9 + (referenceHash << 6) + (referenceHash >> 2));
+            return CombineHashes(referenceHash, ordinalHash);
         }
     };
 
@@ -226,8 +267,10 @@ namespace ParticleLightEditor
         float radius{ 0.0F };
         bool enabled{ true };
         FOREACH_EDIT_PROPERTY(EDIT_CHANGED_DEFINE)
+        FOREACH_EDIT_PROPERTY(EDIT_REVISION_DEFINE)
         AnimationEdit animation;
         bool animationChanged{ false };
+        uint64_t animationRevision{ 0 };
         bool initialized{ false };
     };
 
@@ -242,10 +285,10 @@ namespace ParticleLightEditor
         }
     }
 
-    inline bool IsPropertyChanged(const CategoryRule& a_edit, EditProperty a_property)
+    inline bool IsPropertyChanged(const ScopeEdit& a_edit, EditProperty a_property)
     {
         switch (a_property) {
-            FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CHANGED_CASE)
+            FOREACH_SCOPE_EDIT_PROPERTY(EDIT_CHANGED_CASE)
         default:
             return false;
         }
@@ -260,13 +303,27 @@ namespace ParticleLightEditor
         }
     }
 
-    inline void ClearProperty(CategoryRule& a_edit, EditProperty a_property)
+    inline void ClearProperty(ScopeEdit& a_edit, EditProperty a_property)
     {
         switch (a_property) {
-            FOREACH_CATEGORY_RULE_PROPERTY(EDIT_CLEAR_CASE)
+            FOREACH_SCOPE_EDIT_PROPERTY(EDIT_CLEAR_CASE)
         default:
             return;
         }
+    }
+
+    inline uint64_t LatestRevision(const Edit& a_edit)
+    {
+        auto revision = a_edit.animationChanged ? a_edit.animationRevision : 0;
+        FOREACH_EDIT_PROPERTY(EDIT_LATEST_REVISION)
+        return revision;
+    }
+
+    inline uint64_t LatestRevision(const ScopeEdit& a_edit)
+    {
+        auto revision = a_edit.animationChanged ? a_edit.animationRevision : 0;
+        FOREACH_SCOPE_EDIT_PROPERTY(EDIT_LATEST_REVISION)
+        return revision;
     }
 
     using EditMap = std::unordered_map<EditKey, Edit, EditKeyHash>;
@@ -366,7 +423,9 @@ namespace ParticleLightEditor
 }
 
 #undef EDIT_CHANGED_DEFINE
+#undef EDIT_REVISION_DEFINE
 #undef EDIT_CHANGED_CHECK
 #undef EDIT_CHANGED_CASE
 #undef EDIT_CLEAR_CASE
+#undef EDIT_LATEST_REVISION
 #undef EDIT_PROPERTY_ENUM

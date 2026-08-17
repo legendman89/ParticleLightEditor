@@ -84,6 +84,10 @@ namespace ParticleLightEditor
 
         void SetCategoryRules(const CategoryRuleMap& a_rules);
 
+        const BaseRuleMap& GetBaseRules() const { return baseRules; }
+
+        void SetBaseRules(const BaseRuleMap& a_rules);
+
         const CategoryOverrideMap& GetCategoryOverrides() const { return categoryOverrides; }
 
         void SetCategoryOverrides(const CategoryOverrideMap& a_overrides);
@@ -129,9 +133,23 @@ namespace ParticleLightEditor
 
         void ApplyCategoryRule(Edit& a_edit, const CategoryRuleKey& a_key) const;
 
+        void ApplyBaseRule(Edit& a_edit, const BaseRuleKey& a_key) const;
+
         Edit GetEffectiveEdit(const Entry& a_entry) const;
 
         CategoryRuleKey GetSelectedCategoryRuleKey() const;
+
+        BaseRuleKey GetSelectedBaseRuleKey() const;
+
+        ScopeEdit* GetOrCreateSelectedScopeEdit();
+
+        ScopeEdit* FindSelectedScopeEdit();
+
+        const ScopeEdit* FindSelectedScopeEdit() const;
+
+        uint64_t NextEditRevision();
+
+        void RefreshEditRevision();
 
         bool MatchesSelectedScope(const Entry& a_entry) const;
 
@@ -144,9 +162,11 @@ namespace ParticleLightEditor
         std::vector<size_t> editorIndices;
         EditMap edits;
         CategoryRuleMap categoryRules;
+        BaseRuleMap baseRules;
         CategoryOverrideMap categoryOverrides;
         EditScope editScope{ EditScope::kSelectedLight };
         ParticleCategory targetCategory{ ParticleCategory::kUnclassified };
+        uint64_t editRevision{ 0 };
         size_t selectedIndex{ std::numeric_limits<size_t>::max() };
         bool selectionCleared{ false };
         RE::TESObjectCELL* cell{ nullptr };

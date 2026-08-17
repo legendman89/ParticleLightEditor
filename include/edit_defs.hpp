@@ -11,3 +11,10 @@
     PROPERTY(kColor, color, colorChanged, COLOR, "Editor.Color") \
     PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Editor.Intensity") \
     PROPERTY(kRadius, radiusScale, radiusChanged, VALUE, "Editor.Radius")
+
+#define FOREACH_SCOPE_EDIT_PROPERTY(PROPERTY) \
+    PROPERTY(kColor, color, colorChanged, COLOR, "Editor.Color") \
+    PROPERTY(kIntensity, intensity, intensityChanged, VALUE, "Editor.Intensity") \
+    PROPERTY(kRadius, radiusScale, radiusChanged, VALUE, "Editor.Radius") \
+    PROPERTY(kPosition, localPosition, positionChanged, POINT, "Editor.Position") \
+    PROPERTY(kEnabled, enabled, enabledChanged, VALUE, "Editor.EnabledState")

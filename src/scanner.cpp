@@ -24,9 +24,11 @@ namespace ParticleLightEditor
         editorIndices.clear();
         edits.clear();
         categoryRules.clear();
+        baseRules.clear();
         categoryOverrides.clear();
         editScope = EditScope::kSelectedLight;
         targetCategory = ParticleCategory::kUnclassified;
+        editRevision = 0;
         selectedIndex = std::numeric_limits<size_t>::max();
         selectionCleared = false;
         cell = nullptr;
@@ -47,6 +49,7 @@ namespace ParticleLightEditor
     void Scanner::SetEdits(const EditMap& a_edits)
     {
         edits = a_edits;
+        RefreshEditRevision();
         for (auto& entry : entries) {
             SetParticleLightEdit(entry);
         }
@@ -60,7 +63,39 @@ namespace ParticleLightEditor
             RestoreEntryRuntime(entry);
         }
         categoryRules = a_rules;
+        RefreshEditRevision();
         ApplyParticleLightEdits();
+    }
+
+    void Scanner::SetBaseRules(const BaseRuleMap& a_rules)
+    {
+        for (auto& entry : entries) {
+            RestoreEntryRuntime(entry);
+        }
+        baseRules = a_rules;
+        RefreshEditRevision();
+        ApplyParticleLightEdits();
+    }
+
+    uint64_t Scanner::NextEditRevision()
+    {
+        if (editRevision < std::numeric_limits<uint64_t>::max()) {
+            ++editRevision;
+        }
+        return editRevision;
+    }
+
+    void Scanner::RefreshEditRevision()
+    {
+        for (const auto& pair : edits) {
+            editRevision = std::max(editRevision, LatestRevision(pair.second));
+        }
+        for (const auto& pair : categoryRules) {
+            editRevision = std::max(editRevision, LatestRevision(pair.second));
+        }
+        for (const auto& pair : baseRules) {
+            editRevision = std::max(editRevision, LatestRevision(pair.second));
+        }
     }
 
     void Scanner::SetCategoryOverrides(const CategoryOverrideMap& a_overrides)
