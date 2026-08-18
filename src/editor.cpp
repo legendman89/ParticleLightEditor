@@ -864,6 +864,10 @@ namespace ParticleLightEditor
         if (!selected || editScope == EditScope::kSelectedLight || (IsCategoryScope(editScope) && targetCategory == ParticleCategory::kUnclassified)) {
             return selected;
         }
+        
+        if (MatchesSelectedScope(*selected)) {
+            return selected;
+        }
 
         for (const auto& entry : entries) {
             if (MatchesSelectedScope(entry)) {
