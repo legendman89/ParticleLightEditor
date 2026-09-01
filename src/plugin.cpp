@@ -50,7 +50,7 @@ namespace ParticleLightEditor
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 {
-    SKSE::Init(a_skse);
+    SKSE::Init(a_skse, false);
     
     SetupLog();
 
@@ -62,7 +62,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
     Hooks::Install();
 
-    logger::info("Particle Light Editor loaded");
+    logger::info("{} plugin is loaded", BEAUTIFUL_NAME);
 
     return true;
 }
